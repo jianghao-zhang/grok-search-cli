@@ -2,13 +2,13 @@
 
 Rust CLI for Grok-centered realtime source reconnaissance.
 
-`grok-search-cli` is not a generic smart-search router and not an MCP server. It is a fast CLI surface for using Grok where Grok is strongest: realtime X/community discovery, fresh source gathering, and high-recall lead finding in domains where yesterday's answer may already be stale.
+`grok-search-cli` is a fast CLI surface for using Grok where Grok is strongest: realtime X/community discovery, fresh source gathering, and high-recall lead finding in domains where yesterday's answer may already be stale.
 
 The main artifact is a disk-backed Source Pack: answer text, sources, X URLs, tool calls, warnings, timestamps, and citation provenance saved as JSON for later agent verification.
 
 ## Why This Exists
 
-Grok is unusually useful for realtime and X-adjacent discovery. The goal here is to amplify that long board instead of replacing Codex Web Search, Exa, Tavily, Chrome, or browser automation.
+Grok is unusually useful for realtime and X-adjacent discovery. This CLI turns that strength into a repeatable search workflow with durable source artifacts.
 
 Use it when recency and community evidence matter:
 
@@ -18,6 +18,10 @@ Use it when recency and community evidence matter:
 - Grok-native source gathering before another agent verifies original pages or posts
 
 ## Install
+
+Install Rust/Cargo first if `cargo` is not already available:
+
+- Rust/Cargo: https://doc.rust-lang.org/stable/cargo/getting-started/installation.html
 
 ```bash
 cargo install --git https://github.com/jianghao-zhang/grok-search-cli.git
@@ -29,9 +33,20 @@ For local development:
 cargo build --release
 ```
 
+## Optional Tools
+
+These tools are optional. The core `search`, `source index`, and `source links` workflow works without Tavily or bird.
+
+| Tool | Used for | Setup |
+| --- | --- | --- |
+| Tavily | Fetching web page bodies through `web fetch`, `web map`, web `source fetch`, and web `source fetch-all` | Get a key from [app.tavily.com](https://app.tavily.com), then run `grok-search-cli config set-tavily-key tvly-...` or set `TAVILY_API_KEY`. Tavily's quickstart is at [docs.tavily.com](https://docs.tavily.com/documentation/quickstart). |
+| bird CLI | Fetching X/Twitter source bodies through `source fetch` and `source fetch-all` | Install from [bird.fast](https://bird.fast) with Node 20+: `npm install -g @steipete/bird`, then run `bird check`. bird uses your existing browser session and supports stable `--json` output. |
+
+If Tavily is missing, keep using `search`, `source index`, and `source links`; skip web body fetching or use `--no-web` for batch fetches. If bird is missing or not authenticated, X links still appear in the source index and link list; skip X body fetching or use `--no-x`.
+
 ## Configuration
 
-The CLI reads the same local config surface used by the old Grok Search setup:
+The CLI reads a local config file at `~/.config/grok-search/config.json`:
 
 ```json
 {
@@ -65,7 +80,7 @@ grok-search-cli doctor
 grok-search-cli doctor --live-x
 ```
 
-Tavily and bird are optional. Without Tavily, search, artifacts, source indexes, and link lists still work; only web body extraction is unavailable. Without bird, X Search and X links still work; only local X body fetching is unavailable. `doctor` reports `tavily_configured`, `bird_available`, and `bird_credentials_ok` so agents can pick the right path.
+Tavily and bird are optional. `doctor` reports `tavily_configured`, `bird_available`, and `bird_credentials_ok` so agents can pick the right path.
 
 ## Realtime Search
 
@@ -146,25 +161,7 @@ Web sources go through Tavily Extract. X sources go through local authenticated 
 grok-search-cli source fetch-all <session_id> --parallel 8 --chunk-size 10 --x-parallel 4
 ```
 
-`source fetch-all` writes `web-000.json`, `x-000-<post_id>.json`, and `manifest.json` under `sources-<session_id>/`. The manifest includes per-chunk `latency_ms` and `bytes`. Legacy top-level commands such as `sources`, `fetch-source`, `fetch-sources`, `fetch`, and `map` remain available, but new docs use grouped commands.
-
-## Feature Parity With Old Grok Search MCP
-
-The old MCP server exposed search, source retrieval, fetch, map, config diagnostics, model switching, and planning. Those map to CLI commands:
-
-| Old MCP tool | CLI equivalent |
-| --- | --- |
-| `web_search` | `grok-search-cli search` |
-| `get_sources` | `grok-search-cli source index <session_id>` |
-| `web_fetch` | `grok-search-cli web fetch <url>` |
-| `web_map` | `grok-search-cli web map <url>` |
-| `get_config_info` | `grok-search-cli config show` and `grok-search-cli models` |
-| `switch_model` | `grok-search-cli config set-model <model>` |
-| `plan_*` tools | `grok-search-cli plan "<query>"` |
-
-`grok-search-cli doctor --live-x` is new: it verifies that the current endpoint can actually trigger X Search and returns tool-call/source counts without printing secrets.
-
-`toggle_builtin_tools` is intentionally not migrated. It mutated Claude Code settings and was not a search capability.
+`source fetch-all` writes `web-000.json`, `x-000-<post_id>.json`, and `manifest.json` under `sources-<session_id>/`. The manifest includes per-chunk `latency_ms` and `bytes`.
 
 ## Fetch And Map
 
@@ -184,7 +181,7 @@ These commands use Tavily only. If Tavily is not configured, skip them and use `
 
 ## Planning
 
-For complex jobs, emit a command plan without creating MCP planning sessions:
+For complex jobs, emit a command plan before running search:
 
 ```bash
 grok-search-cli plan "recent X community evidence about Grok 4.20 multi-agent console"
