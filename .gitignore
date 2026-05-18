@@ -13,6 +13,10 @@ target
 # Contains mutation testing data
 **/mutants.out*/
 
+# Local autoresearch outputs
+program.md
+experiments.jsonl
+
 # Local editors and OS files
 .idea/
 .vscode/
