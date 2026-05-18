@@ -1,0 +1,1 @@
+{"id":0,"timestamp":"2026-05-18T17:46:00+08:00","hypothesis":"baseline release CLI metric","bucket":"baseline","value":346.431,"baseline":346.431,"kept":true,"timed_out":false,"duration_seconds":0.0,"learning":"Offline metric is stable across 3 runs: 343.947, 347.920, 346.431."}
