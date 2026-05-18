@@ -300,7 +300,7 @@ pub fn normalize_sources(
             entry.provenance.push(provenance);
         }
     }
-    by_url.into_values().collect()
+    dedupe_x_posts(by_url.into_values().collect())
 }
 
 fn is_x_url(url: &str) -> bool {
@@ -313,12 +313,59 @@ fn parse_x_url(url: &str) -> (Option<String>, Option<String>) {
         Regex::new(r#"https?://(?:x|twitter)\.com/([^/\s]+)/status/([0-9]+)"#).unwrap()
     });
     if let Some(caps) = re.captures(url) {
-        return (
-            caps.get(1).map(|m| m.as_str().to_string()),
-            caps.get(2).map(|m| m.as_str().to_string()),
-        );
+        let raw_handle = caps.get(1).map(|m| m.as_str().to_string());
+        let handle = raw_handle.filter(|h| h != "i");
+        return (handle, caps.get(2).map(|m| m.as_str().to_string()));
     }
     (None, None)
+}
+
+fn dedupe_x_posts(sources: Vec<Source>) -> Vec<Source> {
+    let mut out: Vec<Source> = Vec::new();
+    for source in sources {
+        if source.source_type != SourceType::X {
+            out.push(source);
+            continue;
+        }
+        let Some(post_id) = source.post_id.clone() else {
+            out.push(source);
+            continue;
+        };
+
+        if let Some(existing) = out.iter_mut().find(|candidate| {
+            candidate.source_type == SourceType::X && candidate.post_id.as_deref() == Some(&post_id)
+        }) {
+            merge_x_source(existing, source);
+        } else {
+            out.push(source);
+        }
+    }
+    out
+}
+
+fn merge_x_source(existing: &mut Source, incoming: Source) {
+    let incoming_has_handle = incoming.handle.as_deref().is_some_and(|h| h != "i");
+    let existing_has_handle = existing.handle.as_deref().is_some_and(|h| h != "i");
+
+    if incoming_has_handle && !existing_has_handle {
+        existing.url = incoming.url;
+        existing.handle = incoming.handle;
+        existing.title = incoming.title.or_else(|| existing.title.take());
+        existing.description = incoming.description.or_else(|| existing.description.take());
+    } else {
+        if existing.title.is_none() {
+            existing.title = incoming.title;
+        }
+        if existing.description.is_none() {
+            existing.description = incoming.description;
+        }
+    }
+
+    for provenance in incoming.provenance {
+        if !existing.provenance.iter().any(|p| p == &provenance) {
+            existing.provenance.push(provenance);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -361,6 +408,24 @@ mod tests {
         let parsed = parse_response(&raw, Utc::now());
         assert_eq!(parsed.tool_calls[0].name, "x_keyword_search");
         assert_eq!(parsed.sources[0].source_type, SourceType::X);
+        assert_eq!(parsed.sources[0].handle.as_deref(), Some("xai"));
+    }
+
+    #[test]
+    fn dedupes_x_internal_status_urls_by_post_id() {
+        let raw = json!({
+            "output": [{
+                "type": "message",
+                "content": [{
+                    "type": "output_text",
+                    "text": "https://x.com/i/status/42 https://x.com/xai/status/42",
+                    "annotations": []
+                }]
+            }]
+        });
+        let parsed = parse_response(&raw, Utc::now());
+        assert_eq!(parsed.sources.len(), 1);
+        assert_eq!(parsed.sources[0].url, "https://x.com/xai/status/42");
         assert_eq!(parsed.sources[0].handle.as_deref(), Some("xai"));
     }
 }
