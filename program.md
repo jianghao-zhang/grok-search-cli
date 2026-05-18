@@ -39,3 +39,4 @@
 | ID | Hypothesis | Result | Keep? |
 |----|------------|--------|-------|
 | 0 | baseline | 346.431 | ✓ |
+| 1 | strip release symbols and abort panics | 222.037 | ✓ |
