@@ -148,7 +148,7 @@ pub struct SearchArgs {
     pub max_output_tokens: Option<u32>,
 
     /// Request timeout in seconds.
-    #[arg(long, default_value_t = 90)]
+    #[arg(long, default_value_t = 300)]
     pub timeout_seconds: u64,
 
     /// Include raw upstream JSON in the saved artifact.

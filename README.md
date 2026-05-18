@@ -133,6 +133,8 @@ Basic Grok search writes a session artifact:
 grok-search-cli search "latest AI agent browser control research"
 ```
 
+`search` defaults to a 300 second timeout because Grok realtime and X Search requests can be slow through proxy chains. Use `--timeout-seconds <n>` for a specific run.
+
 X Search is first-class:
 
 ```bash
