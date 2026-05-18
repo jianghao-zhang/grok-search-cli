@@ -13,8 +13,7 @@ pub async fn run(config: &Config, args: &DoctorArgs) -> Result<Value> {
         "checks": {
             "grok_configured": config.grok_api_url.is_some() && config.grok_api_key.is_some(),
             "model_configured": !config.grok_model.trim().is_empty(),
-            "tavily_configured": config.tavily_api_key.is_some(),
-            "firecrawl_configured": config.firecrawl_api_key.is_some()
+            "tavily_configured": config.tavily_api_key.is_some()
         }
     });
 

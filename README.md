@@ -48,12 +48,8 @@ Environment variables take priority:
 | `GROK_API_URL` | OpenAI/Responses-compatible Grok endpoint |
 | `GROK_API_KEY` | Grok endpoint key |
 | `GROK_MODEL` | Default model |
-| `GUDA_API_KEY` | Optional GuDa key; derives Grok/Tavily/Firecrawl URLs |
-| `GUDA_BASE_URL` | Optional GuDa base URL |
 | `TAVILY_API_KEY` | Enables `fetch`, `map`, and explicit `--extra-sources` |
 | `TAVILY_API_URL` | Tavily endpoint |
-| `FIRECRAWL_API_KEY` | Enables fetch/search fallback for old feature parity |
-| `FIRECRAWL_API_URL` | Firecrawl endpoint |
 
 Check the masked live config:
 
@@ -156,7 +152,7 @@ Map a site:
 grok-search-cli map "https://docs.x.ai" --instructions "only tool documentation"
 ```
 
-These commands preserve old Grok Search MCP utility behavior. They are not search-engine routing.
+These commands use Tavily only. They preserve old Grok Search MCP utility behavior without adding Firecrawl or GuDa compatibility paths.
 
 ## Planning
 

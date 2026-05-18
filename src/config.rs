@@ -4,7 +4,6 @@ use anyhow::{Context, Result, bail};
 use serde::Serialize;
 use serde_json::{Value, json};
 
-const DEFAULT_GUDA_BASE_URL: &str = "https://code.guda.studio";
 const DEFAULT_MODEL: &str = "grok-4.20-multi-agent-console";
 
 #[derive(Debug, Clone)]
@@ -15,10 +14,6 @@ pub struct Config {
     pub grok_model: String,
     pub tavily_api_url: String,
     pub tavily_api_key: Option<String>,
-    pub firecrawl_api_url: String,
-    pub firecrawl_api_key: Option<String>,
-    pub guda_base_url: String,
-    pub guda_api_key: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -29,32 +24,21 @@ pub struct MaskedConfig {
     pub grok_model: String,
     pub tavily_api_url: String,
     pub tavily_api_key: String,
-    pub firecrawl_api_url: String,
-    pub firecrawl_api_key: String,
-    pub guda_base_url: String,
-    pub guda_api_key: String,
 }
 
 impl Config {
     pub fn load() -> Result<Self> {
         let config_file = config_file();
         let file = read_config_file(&config_file);
-        let guda_base_url =
-            env::var("GUDA_BASE_URL").unwrap_or_else(|_| DEFAULT_GUDA_BASE_URL.to_string());
-        let guda_api_key = env::var("GUDA_API_KEY").ok();
 
         let grok_api_url = first_nonempty(&[
             env::var("GROK_API_URL").ok(),
             string_field(&file, "api_url"),
-            guda_api_key
-                .as_ref()
-                .map(|_| format!("{}/grok/v1", guda_base_url.trim_end_matches('/'))),
         ]);
 
         let grok_api_key = first_nonempty(&[
             env::var("GROK_API_KEY").ok(),
             string_field(&file, "api_key"),
-            guda_api_key.clone(),
         ]);
 
         let grok_model = first_nonempty(&[
@@ -66,9 +50,6 @@ impl Config {
 
         let tavily_api_url = first_nonempty(&[
             env::var("TAVILY_API_URL").ok(),
-            guda_api_key
-                .as_ref()
-                .map(|_| format!("{}/tavily", guda_base_url.trim_end_matches('/'))),
             Some("https://api.tavily.com".to_string()),
         ])
         .unwrap();
@@ -76,22 +57,6 @@ impl Config {
         let tavily_api_key = first_nonempty(&[
             env::var("TAVILY_API_KEY").ok(),
             string_field(&file, "tavily_api_key"),
-            guda_api_key.clone(),
-        ]);
-
-        let firecrawl_api_url = first_nonempty(&[
-            env::var("FIRECRAWL_API_URL").ok(),
-            guda_api_key
-                .as_ref()
-                .map(|_| format!("{}/firecrawl", guda_base_url.trim_end_matches('/'))),
-            Some("https://api.firecrawl.dev/v2".to_string()),
-        ])
-        .unwrap();
-
-        let firecrawl_api_key = first_nonempty(&[
-            env::var("FIRECRAWL_API_KEY").ok(),
-            string_field(&file, "firecrawl_api_key"),
-            guda_api_key.clone(),
         ]);
 
         Ok(Self {
@@ -101,10 +66,6 @@ impl Config {
             grok_model,
             tavily_api_url,
             tavily_api_key,
-            firecrawl_api_url,
-            firecrawl_api_key,
-            guda_base_url,
-            guda_api_key,
         })
     }
 
@@ -124,18 +85,6 @@ impl Config {
             tavily_api_url: self.tavily_api_url.clone(),
             tavily_api_key: self
                 .tavily_api_key
-                .as_deref()
-                .map(mask)
-                .unwrap_or_else(|| "not configured".to_string()),
-            firecrawl_api_url: self.firecrawl_api_url.clone(),
-            firecrawl_api_key: self
-                .firecrawl_api_key
-                .as_deref()
-                .map(mask)
-                .unwrap_or_else(|| "not configured".to_string()),
-            guda_base_url: self.guda_base_url.clone(),
-            guda_api_key: self
-                .guda_api_key
                 .as_deref()
                 .map(mask)
                 .unwrap_or_else(|| "not configured".to_string()),

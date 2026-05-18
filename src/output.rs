@@ -77,8 +77,6 @@ pub fn print_config(config: &Config, format: OutputFormat) -> Result<()> {
             println!("grok_model: {}", masked.grok_model);
             println!("tavily_api_url: {}", masked.tavily_api_url);
             println!("tavily_api_key: {}", masked.tavily_api_key);
-            println!("firecrawl_api_url: {}", masked.firecrawl_api_url);
-            println!("firecrawl_api_key: {}", masked.firecrawl_api_key);
             Ok(())
         }
     }

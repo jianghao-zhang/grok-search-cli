@@ -17,7 +17,7 @@ pub enum Commands {
     Search(SearchArgs),
     /// Show sources from a persisted search artifact.
     Sources(SourcesArgs),
-    /// Fetch full page content through Tavily Extract, with Firecrawl fallback when configured.
+    /// Fetch full page content through Tavily Extract.
     Fetch(FetchArgs),
     /// Map a site through Tavily Map.
     Map(MapArgs),
@@ -100,7 +100,7 @@ pub struct SearchArgs {
     #[arg(long)]
     pub enable_video_understanding: bool,
 
-    /// Explicitly add extra Tavily/Firecrawl search-source candidates.
+    /// Explicitly add extra Tavily search-source candidates.
     #[arg(long, default_value_t = 0)]
     pub extra_sources: usize,
 
