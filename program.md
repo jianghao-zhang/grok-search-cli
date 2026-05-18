@@ -33,6 +33,9 @@
 ## Cross-Session Learnings
 
 - Session 2026-05-18: Baseline metric should stay offline; live X Search is a smoke test, not the optimization fitness function.
+- Session 2026-05-18: Release profile tuning is the biggest cheap performance win so far, dropping the offline score from 346.431 to the 170s and release binary size from about 6.5 MB to about 3.2 MB.
+- Session 2026-05-18: X Search reliability needs first-class diagnostics; `doctor --live-x` is now the reusable probe instead of ad hoc scripts.
+- Session 2026-05-18: X citations can contain `x.com/i/status/...` internal URLs; dedupe by post id and prefer canonical handles to keep Source Packs cleaner.
 
 ## Past Results
 
