@@ -40,3 +40,4 @@
 |----|------------|--------|-------|
 | 0 | baseline | 346.431 | ✓ |
 | 1 | strip release symbols and abort panics | 222.037 | ✓ |
+| 2 | size-oriented release profile with thin LTO | 173.206 | ✓ |
