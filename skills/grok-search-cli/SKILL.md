@@ -10,7 +10,7 @@ Use `grok-search-cli search` when the task needs realtime leads or Grok's X/comm
 
 Use `--x-search` when the question depends on X posts, X community reaction, public handles, threads, launches, incidents, rumors, or fresh social evidence.
 
-The `search` command defaults to a 300 second timeout. Add `--timeout-seconds <n>` only when the task needs a shorter or longer bound.
+The `search` command defaults to a 300 second timeout. Broad realtime/X/community queries can run for several minutes with no terminal output, especially through proxy endpoints. Do not treat 30-90 seconds of silence as failure; wait for completion unless the user interrupts or a shorter bound is explicitly needed. Add `--timeout-seconds <n>` only when the task needs a shorter or longer bound.
 
 Use `--from-date`, `--to-date`, or `--recency-days` for fast-changing domains. Prefer recent evidence when sources conflict, but keep the conflict visible.
 
