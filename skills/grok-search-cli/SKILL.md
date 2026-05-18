@@ -2,7 +2,7 @@
 
 Use this skill when a user or agent needs Grok-centered realtime source reconnaissance, especially for fast-moving topics, X community evidence, launch-day reports, AI research updates, model availability, or edge-source discovery.
 
-The tool is a CLI workflow, not an MCP server. Call `grok-search-cli` directly and use its disk-backed session artifacts for follow-up source inspection.
+The tool is a CLI workflow. Call `grok-search-cli` directly and use its disk-backed session artifacts for follow-up source inspection.
 
 ## Routing
 
@@ -24,7 +24,7 @@ Use `grok-search-cli source fetch-all <session_id> --parallel 8 --x-parallel 4` 
 
 Use `grok-search-cli config set-tavily-key <key>` once if Tavily is not configured and the user has explicitly provided a key.
 
-Use `grok-search-cli web fetch <url>` for full-page extraction and `grok-search-cli web map <url>` for site mapping. These require Tavily and preserve old Grok Search MCP feature parity without becoming a smart-search router.
+Use `grok-search-cli web fetch <url>` for full-page extraction and `grok-search-cli web map <url>` for site mapping. These require Tavily.
 
 Use `grok-search-cli plan "<query>"` only for complex searches where a visible command plan helps; do not require planning before simple searches.
 
