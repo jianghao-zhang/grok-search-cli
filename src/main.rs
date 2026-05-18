@@ -25,7 +25,12 @@ async fn main() -> Result<()> {
         }
         Commands::Sources(args) => {
             let artifact = artifact::load(&args.session, args.artifact_dir.as_deref())?;
-            output::print_sources(&artifact, args.format)?;
+            output::print_sources(&artifact, &args)?;
+        }
+        Commands::FetchSources(args) => {
+            let artifact = artifact::load(&args.session, args.artifact_dir.as_deref())?;
+            let result = web_tools::fetch_sources(&config, &artifact, &args).await?;
+            output::print_fetch_sources(&result, args.format)?;
         }
         Commands::Fetch(args) => {
             let fetched = web_tools::fetch(&config, &args).await?;
@@ -48,6 +53,10 @@ async fn main() -> Result<()> {
             ConfigCommand::SetModel(args) => {
                 config::set_model(&args.model)?;
                 println!("model set to {}", args.model);
+            }
+            ConfigCommand::SetTavilyKey(args) => {
+                config::set_tavily_key(&args.key)?;
+                println!("tavily api key set");
             }
         },
         Commands::Plan(args) => {

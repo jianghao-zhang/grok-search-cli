@@ -14,6 +14,10 @@ Use `--from-date`, `--to-date`, or `--recency-days` for fast-changing domains. P
 
 Use `grok-search-cli sources <session_id>` after a search when the answer is interesting, suspicious, or needs original-source verification.
 
+Use `grok-search-cli fetch-sources <session_id> --parallel 8` when the next step is to quickly read all non-X web sources through Tavily. Keep X sources on X-native tools unless `--include-x` is explicitly justified.
+
+Use `grok-search-cli config set-tavily-key <key>` once if Tavily is not configured and the user has explicitly provided a key.
+
 Use `grok-search-cli fetch <url>` for full-page extraction and `grok-search-cli map <url>` for site mapping. These preserve old Grok Search MCP feature parity but should not be treated as a smart-search router.
 
 Use `grok-search-cli plan "<query>"` only for complex searches where a visible command plan helps; do not require planning before simple searches.
@@ -26,6 +30,8 @@ Use `grok-search-cli doctor` for local setup diagnostics. Use `grok-search-cli d
 grok-search-cli search --x-search --recency-days 14 --prefer-recent "latest Grok model discussion on X"
 grok-search-cli search --x-search --allowed-x-handle xai --from-date 2026-05-01 "Grok announcements"
 grok-search-cli sources <session_id> --format text
+grok-search-cli fetch-sources <session_id> --parallel 8 --chunk-size 10
+grok-search-cli sources <session_id> --format tavily-command --parallel 8
 grok-search-cli fetch "https://example.com/page"
 grok-search-cli map "https://docs.example.com" --instructions "only API reference pages"
 grok-search-cli models

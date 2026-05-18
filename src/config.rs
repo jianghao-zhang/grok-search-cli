@@ -93,12 +93,20 @@ impl Config {
 }
 
 pub fn set_model(model: &str) -> Result<()> {
+    set_config_field("model", model)
+}
+
+pub fn set_tavily_key(key: &str) -> Result<()> {
+    set_config_field("tavily_api_key", key)
+}
+
+fn set_config_field(field: &str, value_str: &str) -> Result<()> {
     let path = config_file();
     let mut value = read_config_file(&path);
     if !value.is_object() {
         value = json!({});
     }
-    value["model"] = Value::String(model.to_string());
+    value[field] = Value::String(value_str.to_string());
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
     }

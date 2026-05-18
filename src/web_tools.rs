@@ -1,15 +1,17 @@
-use std::time::Duration;
+use std::{fs, path::PathBuf, time::Duration};
 
 use anyhow::{Context, Result};
 use chrono::Utc;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use tokio::task::JoinSet;
 
 use crate::{
-    cli::{FetchArgs, MapArgs},
+    artifact::SearchArtifact,
+    cli::{FetchArgs, FetchSourcesArgs, MapArgs},
     config::{Config, require_key},
-    source::{self, Source},
+    source::{self, Source, SourceType},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -19,6 +21,27 @@ pub struct FetchResult {
     pub markdown: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FetchSourcesResult {
+    pub session_id: String,
+    pub output_dir: String,
+    pub source_count: usize,
+    pub chunk_count: usize,
+    pub ok_chunks: usize,
+    pub failed_chunks: usize,
+    pub chunks: Vec<FetchSourcesChunk>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FetchSourcesChunk {
+    pub index: usize,
+    pub url_count: usize,
+    pub output_file: String,
+    pub ok: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
 pub async fn fetch(config: &Config, args: &FetchArgs) -> Result<FetchResult> {
     let markdown = tavily_extract(config, &args.url, args.timeout_seconds).await?;
     Ok(FetchResult {
@@ -26,6 +49,149 @@ pub async fn fetch(config: &Config, args: &FetchArgs) -> Result<FetchResult> {
         provider: "tavily".to_string(),
         markdown,
     })
+}
+
+pub async fn fetch_sources(
+    config: &Config,
+    artifact: &SearchArtifact,
+    args: &FetchSourcesArgs,
+) -> Result<FetchSourcesResult> {
+    let api_key = require_key(&config.tavily_api_key, "TAVILY_API_KEY")?.to_string();
+    let api_url = config.tavily_api_url.trim_end_matches('/').to_string();
+    let output_dir = args
+        .output_dir
+        .clone()
+        .unwrap_or_else(|| PathBuf::from(format!("tavily-{}", artifact.id)));
+    fs::create_dir_all(&output_dir).with_context(|| format!("create {}", output_dir.display()))?;
+
+    let urls: Vec<String> = artifact
+        .sources
+        .iter()
+        .filter(|source| args.include_x || source.source_type != SourceType::X)
+        .map(|source| source.url.clone())
+        .collect();
+
+    if urls.is_empty() {
+        anyhow::bail!("no Tavily-fetchable sources found; use --include-x to include X URLs");
+    }
+
+    let client = Client::builder()
+        .timeout(Duration::from_secs(args.timeout_seconds))
+        .build()?;
+    let chunk_size = args.chunk_size.max(1);
+    let chunks: Vec<Vec<String>> = urls
+        .chunks(chunk_size)
+        .map(|chunk| chunk.to_vec())
+        .collect();
+    let chunk_count = chunks.len();
+    let mut next = 0usize;
+    let mut set = JoinSet::new();
+    let parallel = args.parallel.max(1);
+    let mut results = Vec::new();
+
+    while next < chunk_count || !set.is_empty() {
+        while next < chunk_count && set.len() < parallel {
+            let chunk_urls = chunks[next].clone();
+            let client = client.clone();
+            let api_key = api_key.clone();
+            let api_url = api_url.clone();
+            let output_file = output_dir.join(format!("chunk-{next:03}.json"));
+            let index = next;
+            set.spawn(async move {
+                fetch_source_chunk(client, api_url, api_key, output_file, index, chunk_urls).await
+            });
+            next += 1;
+        }
+
+        if let Some(joined) = set.join_next().await {
+            results.push(match joined {
+                Ok(chunk) => chunk,
+                Err(err) => FetchSourcesChunk {
+                    index: usize::MAX,
+                    url_count: 0,
+                    output_file: String::new(),
+                    ok: false,
+                    error: Some(err.to_string()),
+                },
+            });
+        }
+    }
+
+    results.sort_by_key(|chunk| chunk.index);
+    let ok_chunks = results.iter().filter(|chunk| chunk.ok).count();
+    let failed_chunks = results.len().saturating_sub(ok_chunks);
+    let result = FetchSourcesResult {
+        session_id: artifact.id.clone(),
+        output_dir: output_dir.display().to_string(),
+        source_count: urls.len(),
+        chunk_count,
+        ok_chunks,
+        failed_chunks,
+        chunks: results,
+    };
+
+    let manifest_path = output_dir.join("manifest.json");
+    fs::write(&manifest_path, serde_json::to_vec_pretty(&result)?)
+        .with_context(|| format!("write {}", manifest_path.display()))?;
+    Ok(result)
+}
+
+async fn fetch_source_chunk(
+    client: Client,
+    api_url: String,
+    api_key: String,
+    output_file: PathBuf,
+    index: usize,
+    urls: Vec<String>,
+) -> FetchSourcesChunk {
+    let url_count = urls.len();
+    let output_file_string = output_file.display().to_string();
+    let response = client
+        .post(format!("{api_url}/extract"))
+        .bearer_auth(api_key)
+        .json(&json!({"urls": urls, "format": "markdown"}))
+        .send()
+        .await;
+
+    match response {
+        Ok(response) => {
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
+            if status.is_success() {
+                match fs::write(&output_file, text) {
+                    Ok(()) => FetchSourcesChunk {
+                        index,
+                        url_count,
+                        output_file: output_file_string,
+                        ok: true,
+                        error: None,
+                    },
+                    Err(err) => FetchSourcesChunk {
+                        index,
+                        url_count,
+                        output_file: output_file_string,
+                        ok: false,
+                        error: Some(err.to_string()),
+                    },
+                }
+            } else {
+                FetchSourcesChunk {
+                    index,
+                    url_count,
+                    output_file: output_file_string,
+                    ok: false,
+                    error: Some(format!("HTTP {}: {}", status, text)),
+                }
+            }
+        }
+        Err(err) => FetchSourcesChunk {
+            index,
+            url_count,
+            output_file: output_file_string,
+            ok: false,
+            error: Some(err.to_string()),
+        },
+    }
 }
 
 pub async fn map(config: &Config, args: &MapArgs) -> Result<Value> {

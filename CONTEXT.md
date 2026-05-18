@@ -72,6 +72,10 @@ _Avoid_: fixed social-search presets, hidden X filters
 The auditable record of all source URLs and inline citations returned by Grok tool-enabled requests.
 _Avoid_: answer-only citations, lost tool provenance
 
+**Source Fetch Command**:
+A CLI read-layer command that takes a Session Artifact and fetches non-X web sources through Tavily in parallel.
+_Avoid_: Grok calling Tavily, hidden provider routing
+
 ## Relationships
 
 - **grok-search-cli** is the primary product boundary.
@@ -90,3 +94,4 @@ _Avoid_: answer-only citations, lost tool provenance
 - **X Search Surface** is a first-class Grok-native surface inside **Source Reconnaissance**, not a route to another search provider.
 - **X Community Reconnaissance** uses **X Search Controls** to preserve recall, speed, and auditability without fixed profiles.
 - A **Citation Ledger** feeds the **Evidence Contract** and **Session Artifact** so later agents can verify or fetch original X and web sources.
+- **Source Fetch Command** is allowed because it starts from an existing **Session Artifact** and belongs to the read/verification step, not Grok search execution.

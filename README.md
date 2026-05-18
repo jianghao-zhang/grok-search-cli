@@ -48,13 +48,14 @@ Environment variables take priority:
 | `GROK_API_URL` | OpenAI/Responses-compatible Grok endpoint |
 | `GROK_API_KEY` | Grok endpoint key |
 | `GROK_MODEL` | Default model |
-| `TAVILY_API_KEY` | Enables `fetch`, `map`, and explicit `--extra-sources` |
+| `TAVILY_API_KEY` | Enables `fetch`, `fetch-sources`, `map`, and explicit `--extra-sources` |
 | `TAVILY_API_URL` | Tavily endpoint |
 
 Check the masked live config:
 
 ```bash
 grok-search-cli config show
+grok-search-cli config set-tavily-key tvly-...
 ```
 
 Diagnose the local setup without exposing keys:
@@ -120,6 +121,20 @@ grok-search-cli sources <session_id> --format text
 grok-search-cli sources <session_id> --format json
 ```
 
+Fetch all non-X source pages through Tavily in parallel:
+
+```bash
+grok-search-cli fetch-sources <session_id> --parallel 8 --chunk-size 10
+```
+
+Or ask the CLI to print the one-line command first:
+
+```bash
+grok-search-cli sources <session_id> --format tavily-command --parallel 8 --chunk-size 10
+```
+
+`fetch-sources` writes `chunk-000.json`, `chunk-001.json`, and `manifest.json` under `tavily-<session_id>/`. X URLs are skipped by default; use `--include-x` only when you explicitly want Tavily to try them.
+
 ## Feature Parity With Old Grok Search MCP
 
 The old MCP server exposed search, source retrieval, fetch, map, config diagnostics, model switching, and planning. Those map to CLI commands:
@@ -144,6 +159,7 @@ Fetch full page content:
 
 ```bash
 grok-search-cli fetch "https://docs.x.ai/developers/tools/x-search"
+grok-search-cli fetch-sources <session_id> --parallel 8
 ```
 
 Map a site:

@@ -17,6 +17,8 @@ pub enum Commands {
     Search(SearchArgs),
     /// Show sources from a persisted search artifact.
     Sources(SourcesArgs),
+    /// Fetch artifact web sources through Tavily Extract in parallel.
+    FetchSources(FetchSourcesArgs),
     /// Fetch full page content through Tavily Extract.
     Fetch(FetchArgs),
     /// Map a site through Tavily Map.
@@ -140,6 +142,56 @@ pub struct SourcesArgs {
     #[arg(long)]
     pub artifact_dir: Option<PathBuf>,
 
+    /// Include X/Twitter URLs in URL or Tavily command output.
+    #[arg(long)]
+    pub include_x: bool,
+
+    /// Maximum URLs per Tavily Extract request chunk.
+    #[arg(long, default_value_t = 10)]
+    pub chunk_size: usize,
+
+    /// Maximum parallel Tavily Extract requests in generated shell command.
+    #[arg(long, default_value_t = 8)]
+    pub parallel: usize,
+
+    /// Output directory used by generated Tavily command.
+    #[arg(long)]
+    pub output_dir: Option<PathBuf>,
+
+    /// Output format.
+    #[arg(long, default_value = "json")]
+    pub format: SourcesFormat,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct FetchSourcesArgs {
+    /// Artifact session id or path to artifact JSON.
+    pub session: String,
+
+    /// Override artifact directory when session is an id.
+    #[arg(long)]
+    pub artifact_dir: Option<PathBuf>,
+
+    /// Include X/Twitter URLs. Default skips them because X should be read through X-native tools.
+    #[arg(long)]
+    pub include_x: bool,
+
+    /// Maximum URLs per Tavily Extract request chunk.
+    #[arg(long, default_value_t = 10)]
+    pub chunk_size: usize,
+
+    /// Maximum parallel Tavily Extract requests.
+    #[arg(long, default_value_t = 8)]
+    pub parallel: usize,
+
+    /// Output directory for chunk JSON files and manifest.
+    #[arg(long)]
+    pub output_dir: Option<PathBuf>,
+
+    /// Request timeout in seconds per chunk.
+    #[arg(long, default_value_t = 90)]
+    pub timeout_seconds: u64,
+
     /// Output format.
     #[arg(long, default_value = "json")]
     pub format: OutputFormat,
@@ -221,6 +273,8 @@ pub enum ConfigCommand {
     Show(ConfigShowArgs),
     /// Persist the default Grok model in ~/.config/grok-search/config.json.
     SetModel(SetModelArgs),
+    /// Persist a Tavily API key in ~/.config/grok-search/config.json.
+    SetTavilyKey(SetTavilyKeyArgs),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -233,6 +287,11 @@ pub struct ConfigShowArgs {
 #[derive(Args, Debug, Clone)]
 pub struct SetModelArgs {
     pub model: String,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct SetTavilyKeyArgs {
+    pub key: String,
 }
 
 #[derive(Args, Debug, Clone)]
@@ -257,6 +316,15 @@ pub enum OutputFormat {
     #[default]
     Text,
     Json,
+}
+
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, ValueEnum)]
+pub enum SourcesFormat {
+    Text,
+    #[default]
+    Json,
+    Urls,
+    TavilyCommand,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, ValueEnum)]
