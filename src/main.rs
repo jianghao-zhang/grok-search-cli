@@ -1,0 +1,55 @@
+mod artifact;
+mod cli;
+mod config;
+mod grok;
+mod output;
+mod plan;
+mod source;
+mod web_tools;
+
+use anyhow::Result;
+use clap::Parser;
+use cli::{Cli, Commands, ConfigCommand};
+use config::Config;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let cli = Cli::parse();
+    let config = Config::load()?;
+
+    match cli.command {
+        Commands::Search(args) => {
+            let artifact = grok::search(&config, args).await?;
+            output::print_search_artifact(&artifact, artifact.format)?;
+        }
+        Commands::Sources(args) => {
+            let artifact = artifact::load(&args.session, args.artifact_dir.as_deref())?;
+            output::print_sources(&artifact, args.format)?;
+        }
+        Commands::Fetch(args) => {
+            let fetched = web_tools::fetch(&config, &args).await?;
+            output::print_fetch(&fetched, args.format)?;
+        }
+        Commands::Map(args) => {
+            let mapped = web_tools::map(&config, &args).await?;
+            output::print_json_or_text(&mapped, args.format)?;
+        }
+        Commands::Models(args) => {
+            let models = grok::models(&config, args.timeout_seconds).await?;
+            output::print_models(&models, args.format)?;
+        }
+        Commands::Config { command } => match command {
+            ConfigCommand::Show(args) => output::print_config(&config, args.format)?,
+            ConfigCommand::SetModel(args) => {
+                config::set_model(&args.model)?;
+                println!("model set to {}", args.model);
+            }
+        },
+        Commands::Plan(args) => {
+            let plan = plan::build_plan(&args);
+            output::print_json_or_text(&plan, args.format)?;
+        }
+    }
+
+    Ok(())
+}
