@@ -2,7 +2,7 @@
 
 The product boundary is `grok-search-cli`, a Rust CLI used directly by humans and by agent skills. The old FastMCP server shape is retired and no compatibility MCP adapter is kept in this repository.
 
-The old MCP search surface is migrated into CLI commands: `search`, `sources`, `fetch`, `map`, `models`, `config set-model`, and `plan`. The rejected `toggle_builtin_tools` capability is intentionally omitted because it mutates external agent settings rather than improving search.
+The old MCP search surface is migrated into CLI commands: `search`, `source index`, `source links`, `source fetch`, `source fetch-all`, `web fetch`, `web map`, `models`, `config set-model`, and `plan`. The rejected `toggle_builtin_tools` capability is intentionally omitted because it mutates external agent settings rather than improving search.
 
 Consequences:
 

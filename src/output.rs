@@ -75,13 +75,15 @@ pub fn print_fetch_sources(result: &FetchSourcesResult, format: OutputFormat) ->
             println!("failed_chunks: {}", result.failed_chunks);
             for chunk in &result.chunks {
                 println!(
-                    "chunk {} [{}:{}]: {} urls -> {} ({})",
+                    "chunk {} [{}:{}]: {} urls -> {} ({}; {} ms; {} bytes)",
                     chunk.index,
                     chunk.provider,
                     chunk.source_type,
                     chunk.url_count,
                     chunk.output_file,
-                    if chunk.ok { "ok" } else { "failed" }
+                    if chunk.ok { "ok" } else { "failed" },
+                    chunk.latency_ms,
+                    chunk.bytes
                 );
                 if let Some(error) = &chunk.error {
                     println!("  error: {error}");
@@ -104,6 +106,8 @@ pub fn print_fetched_source(result: &FetchedSourceResult, format: OutputFormat) 
             println!("provider: {}", result.provider);
             println!("source_type: {}", result.source_type);
             println!("output_file: {}", result.output_file);
+            println!("latency_ms: {}", result.latency_ms);
+            println!("bytes: {}", result.bytes);
             println!("ok: {}", result.ok);
             if let Some(error) = &result.error {
                 println!("error: {error}");
@@ -168,7 +172,7 @@ fn render_sources(artifact: &SearchArtifact, args: &SourcesArgs) -> Result<Strin
         )),
         SourcesFormat::Text => Ok(render_text_sources(artifact)),
         SourcesFormat::Markdown => Ok(render_markdown_sources(artifact, args)),
-        SourcesFormat::Urls => Ok(render_source_urls(artifact, args.include_x)),
+        SourcesFormat::Urls => Ok(render_source_urls(artifact, args)),
         SourcesFormat::FetchCommand | SourcesFormat::TavilyCommand => {
             Ok(format!("{}\n", source_fetch_command(artifact, args)?))
         }
@@ -229,13 +233,27 @@ fn render_markdown_sources(artifact: &SearchArtifact, args: &SourcesArgs) -> Str
     out
 }
 
-fn render_source_urls(artifact: &SearchArtifact, include_x: bool) -> String {
+fn render_source_urls(artifact: &SearchArtifact, args: &SourcesArgs) -> String {
     let mut out = String::new();
-    for source in tavily_candidate_sources(artifact, include_x) {
+    for source in artifact
+        .sources
+        .iter()
+        .filter(|source| source_matches_url_filter(source, args))
+    {
         out.push_str(&source.url);
         out.push('\n');
     }
     out
+}
+
+fn source_matches_url_filter(source: &Source, args: &SourcesArgs) -> bool {
+    if args.no_x && source.source_type == SourceType::X {
+        return false;
+    }
+    if args.no_web && source.source_type != SourceType::X {
+        return false;
+    }
+    args.include_x || source.source_type != SourceType::X
 }
 
 fn default_sources_output_file(artifact: &SearchArtifact, format: SourcesFormat) -> PathBuf {
@@ -249,14 +267,6 @@ fn default_sources_output_file(artifact: &SearchArtifact, format: SourcesFormat)
     PathBuf::from(format!("sources-{}", artifact.id)).join(file_name)
 }
 
-fn tavily_candidate_sources(artifact: &SearchArtifact, include_x: bool) -> Vec<&Source> {
-    artifact
-        .sources
-        .iter()
-        .filter(|source| include_x || source.source_type != SourceType::X)
-        .collect()
-}
-
 fn source_fetch_command(artifact: &SearchArtifact, args: &SourcesArgs) -> Result<String> {
     if artifact.sources.is_empty() {
         return Ok("printf '%s\\n' 'No sources found in artifact.' >&2; exit 1".to_string());
@@ -268,7 +278,7 @@ fn source_fetch_command(artifact: &SearchArtifact, args: &SourcesArgs) -> Result
         .map(|p| p.display().to_string())
         .unwrap_or_else(|| format!("sources-{}", artifact.id));
     let mut command = format!(
-        "grok-search-cli fetch-sources {}{} --parallel {} --chunk-size {} --x-parallel {} --output-dir {}",
+        "grok-search-cli source fetch-all {}{} --parallel {} --chunk-size {} --x-parallel {} --output-dir {}",
         sh_quote(&args.session),
         args.artifact_dir
             .as_ref()
@@ -296,7 +306,7 @@ fn source_fetch_command(artifact: &SearchArtifact, args: &SourcesArgs) -> Result
 
 fn fetch_source_command(args: &SourcesArgs, index: usize) -> String {
     let mut command = format!(
-        "grok-search-cli fetch-source {}{} --index {}",
+        "grok-search-cli source fetch {}{} --index {}",
         sh_quote(&args.session),
         args.artifact_dir
             .as_ref()

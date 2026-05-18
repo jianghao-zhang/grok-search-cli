@@ -15,15 +15,30 @@ pub struct Cli {
 pub enum Commands {
     /// Run a Grok realtime source reconnaissance search and persist a session artifact.
     Search(SearchArgs),
-    /// Show sources from a persisted search artifact.
+    /// Work with sources from a persisted search artifact.
+    Source {
+        #[command(subcommand)]
+        command: SourceCommand,
+    },
+    /// Explicit Tavily web utilities.
+    Web {
+        #[command(subcommand)]
+        command: WebCommand,
+    },
+    /// Show sources from a persisted search artifact. Legacy alias for `source index`.
+    #[command(hide = true)]
     Sources(SourcesArgs),
-    /// Fetch artifact web sources through Tavily Extract in parallel.
+    /// Fetch artifact sources in parallel. Legacy alias for `source fetch-all`.
+    #[command(hide = true)]
     FetchSources(FetchSourcesArgs),
-    /// Fetch one artifact source by index or URL through its source-native reader.
+    /// Fetch one artifact source by index or URL. Legacy alias for `source fetch`.
+    #[command(hide = true)]
     FetchSource(FetchSourceArgs),
-    /// Fetch full page content through Tavily Extract.
+    /// Fetch full page content through Tavily Extract. Legacy alias for `web fetch`.
+    #[command(hide = true)]
     Fetch(FetchArgs),
-    /// Map a site through Tavily Map.
+    /// Map a site through Tavily Map. Legacy alias for `web map`.
+    #[command(hide = true)]
     Map(MapArgs),
     /// List models exposed by the configured Grok-compatible endpoint.
     Models(ModelsArgs),
@@ -36,6 +51,26 @@ pub enum Commands {
     },
     /// Emit a lightweight CLI execution plan for complex searches.
     Plan(PlanArgs),
+}
+
+#[derive(Subcommand, Debug)]
+pub enum SourceCommand {
+    /// Write or print a source index for an artifact.
+    Index(SourceIndexArgs),
+    /// Write or print artifact source URLs.
+    Links(SourceLinksArgs),
+    /// Fetch one selected source through its source-native reader.
+    Fetch(FetchSourceArgs),
+    /// Fetch all artifact sources through source-native readers.
+    FetchAll(FetchSourcesArgs),
+}
+
+#[derive(Subcommand, Debug)]
+pub enum WebCommand {
+    /// Fetch full page content through Tavily Extract.
+    Fetch(FetchArgs),
+    /// Map a site through Tavily Map.
+    Map(MapArgs),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -191,6 +226,104 @@ pub struct SourcesArgs {
     /// Output format.
     #[arg(long, default_value = "json")]
     pub format: SourcesFormat,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct SourceIndexArgs {
+    /// Artifact session id or path to artifact JSON.
+    pub session: String,
+
+    /// Override artifact directory when session is an id.
+    #[arg(long)]
+    pub artifact_dir: Option<PathBuf>,
+
+    /// Output directory used in generated fetch commands and default output path.
+    #[arg(long)]
+    pub output_dir: Option<PathBuf>,
+
+    /// Write source index to this exact file.
+    #[arg(long)]
+    pub output_file: Option<PathBuf>,
+
+    /// Print to stdout instead of writing sources-<session_id>/source-index.md.
+    #[arg(long)]
+    pub stdout: bool,
+
+    /// bird command timeout in seconds in generated fetch commands.
+    #[arg(long, default_value_t = 20)]
+    pub x_timeout_seconds: u64,
+
+    /// bird executable path or command name in generated fetch commands.
+    #[arg(long, default_value = "bird")]
+    pub bird_command: String,
+}
+
+impl SourceIndexArgs {
+    pub fn into_sources_args(self) -> SourcesArgs {
+        SourcesArgs {
+            session: self.session,
+            artifact_dir: self.artifact_dir,
+            include_x: true,
+            no_web: false,
+            no_x: false,
+            chunk_size: 10,
+            parallel: 8,
+            x_parallel: 4,
+            x_timeout_seconds: self.x_timeout_seconds,
+            bird_command: self.bird_command,
+            output_dir: self.output_dir,
+            write: !self.stdout,
+            output_file: self.output_file,
+            format: SourcesFormat::Markdown,
+        }
+    }
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct SourceLinksArgs {
+    /// Artifact session id or path to artifact JSON.
+    pub session: String,
+
+    /// Override artifact directory when session is an id.
+    #[arg(long)]
+    pub artifact_dir: Option<PathBuf>,
+
+    /// Skip ordinary web source URLs.
+    #[arg(long)]
+    pub no_web: bool,
+
+    /// Skip X/Twitter source URLs.
+    #[arg(long)]
+    pub no_x: bool,
+
+    /// Write links to this exact file.
+    #[arg(long)]
+    pub output_file: Option<PathBuf>,
+
+    /// Print to stdout instead of writing sources-<session_id>/links.txt.
+    #[arg(long)]
+    pub stdout: bool,
+}
+
+impl SourceLinksArgs {
+    pub fn into_sources_args(self) -> SourcesArgs {
+        SourcesArgs {
+            session: self.session,
+            artifact_dir: self.artifact_dir,
+            include_x: true,
+            no_web: self.no_web,
+            no_x: self.no_x,
+            chunk_size: 10,
+            parallel: 8,
+            x_parallel: 4,
+            x_timeout_seconds: 20,
+            bird_command: "bird".to_string(),
+            output_dir: None,
+            write: !self.stdout,
+            output_file: self.output_file,
+            format: SourcesFormat::Urls,
+        }
+    }
 }
 
 #[derive(Args, Debug, Clone)]

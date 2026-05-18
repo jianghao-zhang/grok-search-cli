@@ -4,18 +4,23 @@ use anyhow::{Context, Result};
 use chrono::{Duration as ChronoDuration, Utc};
 use reqwest::Client;
 use serde_json::{Value, json};
+use tokio::{process::Command, time::timeout};
 
 use crate::{cli::DoctorArgs, config::Config, source};
 
 pub async fn run(config: &Config, args: &DoctorArgs) -> Result<Value> {
+    let bird = check_bird(args.timeout_seconds).await;
     let mut report = json!({
         "config": config.masked(),
         "checks": {
             "grok_configured": config.grok_api_url.is_some() && config.grok_api_key.is_some(),
             "model_configured": !config.grok_model.trim().is_empty(),
-            "tavily_configured": config.tavily_api_key.is_some()
+            "tavily_configured": config.tavily_api_key.is_some(),
+            "bird_available": bird.get("available").and_then(Value::as_bool).unwrap_or(false),
+            "bird_credentials_ok": bird.get("credentials_ok").and_then(Value::as_bool).unwrap_or(false)
         }
     });
+    report["bird"] = bird;
 
     if config.grok_api_url.is_some() && config.grok_api_key.is_some() {
         report["models"] = check_models(config, args.timeout_seconds).await;
@@ -26,6 +31,47 @@ pub async fn run(config: &Config, args: &DoctorArgs) -> Result<Value> {
     }
 
     Ok(report)
+}
+
+async fn check_bird(timeout_seconds: u64) -> Value {
+    let command_timeout = Duration::from_secs(timeout_seconds.clamp(1, 10));
+    let version = timeout(
+        command_timeout,
+        Command::new("bird").arg("--version").output(),
+    )
+    .await;
+    let Ok(Ok(version_output)) = version else {
+        return json!({
+            "available": false,
+            "credentials_ok": false,
+            "hint": "Install bird CLI to fetch X sources locally, or use source index/links without fetching X bodies."
+        });
+    };
+    if !version_output.status.success() {
+        return json!({
+            "available": false,
+            "credentials_ok": false,
+            "hint": "bird command exists but did not run successfully."
+        });
+    }
+
+    let check = timeout(
+        command_timeout,
+        Command::new("bird").arg("check").arg("--no-color").output(),
+    )
+    .await;
+    let credentials_ok = matches!(check, Ok(Ok(output)) if output.status.success());
+
+    json!({
+        "available": true,
+        "credentials_ok": credentials_ok,
+        "version": String::from_utf8_lossy(&version_output.stdout).trim(),
+        "hint": if credentials_ok {
+            "X source fetch is available through bird read --json."
+        } else {
+            "bird is installed, but credentials are not ready. source index/links still work; use --no-x for full batch fetch."
+        }
+    })
 }
 
 async fn check_models(config: &Config, timeout_seconds: u64) -> Value {

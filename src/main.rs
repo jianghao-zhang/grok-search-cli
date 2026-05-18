@@ -10,7 +10,7 @@ mod web_tools;
 
 use anyhow::Result;
 use clap::Parser;
-use cli::{Cli, Commands, ConfigCommand};
+use cli::{Cli, Commands, ConfigCommand, SourceCommand, WebCommand};
 use config::Config;
 
 #[tokio::main]
@@ -23,6 +23,38 @@ async fn main() -> Result<()> {
             let artifact = grok::search(&config, args).await?;
             output::print_search_artifact(&artifact, artifact.format)?;
         }
+        Commands::Source { command } => match command {
+            SourceCommand::Index(args) => {
+                let args = args.into_sources_args();
+                let artifact = artifact::load(&args.session, args.artifact_dir.as_deref())?;
+                output::print_sources(&artifact, &args)?;
+            }
+            SourceCommand::Links(args) => {
+                let args = args.into_sources_args();
+                let artifact = artifact::load(&args.session, args.artifact_dir.as_deref())?;
+                output::print_sources(&artifact, &args)?;
+            }
+            SourceCommand::Fetch(args) => {
+                let artifact = artifact::load(&args.session, args.artifact_dir.as_deref())?;
+                let result = web_tools::fetch_source(&config, &artifact, &args).await?;
+                output::print_fetched_source(&result, args.format)?;
+            }
+            SourceCommand::FetchAll(args) => {
+                let artifact = artifact::load(&args.session, args.artifact_dir.as_deref())?;
+                let result = web_tools::fetch_sources(&config, &artifact, &args).await?;
+                output::print_fetch_sources(&result, args.format)?;
+            }
+        },
+        Commands::Web { command } => match command {
+            WebCommand::Fetch(args) => {
+                let fetched = web_tools::fetch(&config, &args).await?;
+                output::print_fetch(&fetched, args.format)?;
+            }
+            WebCommand::Map(args) => {
+                let mapped = web_tools::map(&config, &args).await?;
+                output::print_json_or_text(&mapped, args.format)?;
+            }
+        },
         Commands::Sources(args) => {
             let artifact = artifact::load(&args.session, args.artifact_dir.as_deref())?;
             output::print_sources(&artifact, &args)?;

@@ -48,7 +48,7 @@ Environment variables take priority:
 | `GROK_API_URL` | OpenAI/Responses-compatible Grok endpoint |
 | `GROK_API_KEY` | Grok endpoint key |
 | `GROK_MODEL` | Default model |
-| `TAVILY_API_KEY` | Enables web extraction in `fetch`, `fetch-sources`, `map`, and explicit `--extra-sources` |
+| `TAVILY_API_KEY` | Enables web extraction in `web fetch`, `web map`, web `source fetch`, web `source fetch-all`, and explicit `--extra-sources` |
 | `TAVILY_API_URL` | Tavily endpoint |
 
 Check the masked live config:
@@ -64,6 +64,8 @@ Diagnose the local setup without exposing keys:
 grok-search-cli doctor
 grok-search-cli doctor --live-x
 ```
+
+Tavily and bird are optional. Without Tavily, search, artifacts, source indexes, and link lists still work; only web body extraction is unavailable. Without bird, X Search and X links still work; only local X body fetching is unavailable. `doctor` reports `tavily_configured`, `bird_available`, and `bird_credentials_ok` so agents can pick the right path.
 
 ## Realtime Search
 
@@ -117,42 +119,34 @@ warnings: ...
 Inspect the durable Source Pack:
 
 ```bash
-grok-search-cli sources <session_id> --format text
-grok-search-cli sources <session_id> --format json
-grok-search-cli sources <session_id> --format markdown --write
-grok-search-cli sources <session_id> --format urls --include-x --write
+grok-search-cli source index <session_id>
+grok-search-cli source links <session_id>
 ```
 
-The Markdown source index is the default agentic workflow artifact: it writes `sources-<session_id>/source-index.md` with numbered sources and ready-to-run `fetch-source --index N` commands. The URL list writes `sources-<session_id>/links.txt` for lightweight routing or external tooling.
+`source index` writes `sources-<session_id>/source-index.md` with numbered sources and ready-to-run `source fetch --index N` commands. `source links` writes `sources-<session_id>/links.txt` with all source URLs, including X URLs. Use `--stdout` on either command when terminal output is small enough.
 
 Fetch one selected source after inspecting the index:
 
 ```bash
-grok-search-cli fetch-source <session_id> --index 3
-grok-search-cli fetch-source <session_id> --url "https://x.com/xai/status/..."
+grok-search-cli source fetch <session_id> --index 3
+grok-search-cli source fetch <session_id> --url "https://x.com/xai/status/..."
 ```
 
-`fetch-source` writes content under `sources-<session_id>/`: web sources become Markdown from Tavily, X sources become JSON from local authenticated `bird read --json`.
+`source fetch` writes content under `sources-<session_id>/`: web sources become Markdown from Tavily, X sources become JSON from local authenticated `bird read --json`. Its JSON summary includes `latency_ms` and `bytes` for lightweight fetch performance tracking.
 
 Fetch all artifact sources in parallel only when the agent truly needs a full batch:
 
 ```bash
-grok-search-cli fetch-sources <session_id> --parallel 8 --chunk-size 10
+grok-search-cli source fetch-all <session_id> --parallel 8 --chunk-size 10
 ```
 
-Web sources go through Tavily Extract. X sources go through local authenticated `bird read --json`, with separate X concurrency. If the artifact is X-only, `fetch-sources` does not require a Tavily key; if it contains web sources, configure `TAVILY_API_KEY` or use `--no-web`.
+Web sources go through Tavily Extract. X sources go through local authenticated `bird read --json`, with separate X concurrency. If the artifact is X-only, `source fetch-all` does not require a Tavily key; if it contains web sources and Tavily is not configured, use `--no-web`. If bird is not installed or not authenticated, use `--no-x`.
 
 ```bash
-grok-search-cli fetch-sources <session_id> --parallel 8 --chunk-size 10 --x-parallel 4
+grok-search-cli source fetch-all <session_id> --parallel 8 --chunk-size 10 --x-parallel 4
 ```
 
-Or ask the CLI to print the one-line batch command first:
-
-```bash
-grok-search-cli sources <session_id> --format fetch-command --parallel 8 --chunk-size 10
-```
-
-`fetch-sources` writes `web-000.json`, `x-000-<post_id>.json`, and `manifest.json` under `sources-<session_id>/`. Use `--no-web` or `--no-x` only when you intentionally want one side skipped. `--format tavily-command` remains accepted as a legacy alias for command generation, but the command now fetches both web and X sources through their proper read paths.
+`source fetch-all` writes `web-000.json`, `x-000-<post_id>.json`, and `manifest.json` under `sources-<session_id>/`. The manifest includes per-chunk `latency_ms` and `bytes`. Legacy top-level commands such as `sources`, `fetch-source`, `fetch-sources`, `fetch`, and `map` remain available, but new docs use grouped commands.
 
 ## Feature Parity With Old Grok Search MCP
 
@@ -161,9 +155,9 @@ The old MCP server exposed search, source retrieval, fetch, map, config diagnost
 | Old MCP tool | CLI equivalent |
 | --- | --- |
 | `web_search` | `grok-search-cli search` |
-| `get_sources` | `grok-search-cli sources <session_id>` |
-| `web_fetch` | `grok-search-cli fetch <url>` |
-| `web_map` | `grok-search-cli map <url>` |
+| `get_sources` | `grok-search-cli source index <session_id>` |
+| `web_fetch` | `grok-search-cli web fetch <url>` |
+| `web_map` | `grok-search-cli web map <url>` |
 | `get_config_info` | `grok-search-cli config show` and `grok-search-cli models` |
 | `switch_model` | `grok-search-cli config set-model <model>` |
 | `plan_*` tools | `grok-search-cli plan "<query>"` |
@@ -177,17 +171,16 @@ The old MCP server exposed search, source retrieval, fetch, map, config diagnost
 Fetch full page content:
 
 ```bash
-grok-search-cli fetch "https://docs.x.ai/developers/tools/x-search"
-grok-search-cli fetch-sources <session_id> --parallel 8
+grok-search-cli web fetch "https://docs.x.ai/developers/tools/x-search"
 ```
 
 Map a site:
 
 ```bash
-grok-search-cli map "https://docs.x.ai" --instructions "only tool documentation"
+grok-search-cli web map "https://docs.x.ai" --instructions "only tool documentation"
 ```
 
-These commands use Tavily only. They preserve old Grok Search MCP utility behavior without adding Firecrawl or GuDa compatibility paths.
+These commands use Tavily only. If Tavily is not configured, skip them and use `source index` or `source links` for agentic follow-up through other tools.
 
 ## Planning
 

@@ -80,6 +80,10 @@ _Avoid_: Grok calling Tavily, hidden provider routing
 A file-backed Markdown or URL-list view of a Session Artifact that lets agents choose which source to read next by index or URL.
 _Avoid_: dumping many source bodies to terminal
 
+**Source Command Namespace**:
+The grouped CLI surface for artifact follow-up: `source index`, `source links`, `source fetch`, and `source fetch-all`.
+_Avoid_: scattering artifact follow-up across unrelated top-level commands
+
 ## Relationships
 
 - **grok-search-cli** is the primary product boundary.
@@ -100,3 +104,4 @@ _Avoid_: dumping many source bodies to terminal
 - A **Citation Ledger** feeds the **Evidence Contract** and **Session Artifact** so later agents can verify or fetch original X and web sources.
 - **Source Fetch Command** is allowed because it starts from an existing **Session Artifact** and belongs to the read/verification step, not Grok search execution.
 - **Source Index** is the default read handoff before **Source Fetch Command**; agents should inspect links and fetch selected sources before resorting to full-batch fetching.
+- **Source Command Namespace** keeps artifact read workflows separate from explicit **Web** utilities such as `web fetch` and `web map`.

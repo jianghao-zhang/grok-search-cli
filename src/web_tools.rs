@@ -2,7 +2,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     process::Stdio,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use anyhow::{Context, Result};
@@ -47,6 +47,8 @@ pub struct FetchSourcesChunk {
     pub url_count: usize,
     pub urls: Vec<String>,
     pub output_file: String,
+    pub latency_ms: u64,
+    pub bytes: usize,
     pub ok: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
@@ -61,6 +63,8 @@ pub struct FetchedSourceResult {
     pub provider: String,
     pub source_type: String,
     pub output_file: String,
+    pub latency_ms: u64,
+    pub bytes: usize,
     pub ok: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
@@ -201,6 +205,8 @@ pub async fn fetch_source(
             provider: chunk.provider,
             source_type: chunk.source_type,
             output_file: chunk.output_file,
+            latency_ms: chunk.latency_ms,
+            bytes: chunk.bytes,
             ok: chunk.ok,
             error: chunk.error,
         });
@@ -213,7 +219,10 @@ pub async fn fetch_source(
         ))
     });
     ensure_parent_dir(&output_file)?;
+    let start = Instant::now();
     let markdown = tavily_extract(config, &source.url, args.timeout_seconds).await?;
+    let latency_ms = elapsed_ms(start);
+    let bytes = markdown.len();
     fs::write(&output_file, markdown)
         .with_context(|| format!("write {}", output_file.display()))?;
     Ok(FetchedSourceResult {
@@ -223,6 +232,8 @@ pub async fn fetch_source(
         provider: "tavily".to_string(),
         source_type: "web".to_string(),
         output_file: output_file.display().to_string(),
+        latency_ms,
+        bytes,
         ok: true,
         error: None,
     })
@@ -323,6 +334,8 @@ async fn fetch_web_source_chunks(batch: WebSourceBatch) -> Vec<FetchSourcesChunk
                     url_count: 0,
                     urls: Vec::new(),
                     output_file: String::new(),
+                    latency_ms: 0,
+                    bytes: 0,
                     ok: false,
                     error: Some(err.to_string()),
                 },
@@ -342,6 +355,7 @@ async fn fetch_source_chunk(
     index: usize,
     urls: Vec<String>,
 ) -> FetchSourcesChunk {
+    let start = Instant::now();
     let url_count = urls.len();
     let manifest_urls = urls.clone();
     let output_file_string = output_file.display().to_string();
@@ -356,8 +370,10 @@ async fn fetch_source_chunk(
         Ok(response) => {
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
+            let latency_ms = elapsed_ms(start);
+            let bytes = text.len();
             if status.is_success() {
-                match fs::write(&output_file, text) {
+                match fs::write(&output_file, &text) {
                     Ok(()) => FetchSourcesChunk {
                         index,
                         provider: "tavily".to_string(),
@@ -365,6 +381,8 @@ async fn fetch_source_chunk(
                         url_count,
                         urls: manifest_urls,
                         output_file: output_file_string,
+                        latency_ms,
+                        bytes,
                         ok: true,
                         error: None,
                     },
@@ -375,6 +393,8 @@ async fn fetch_source_chunk(
                         url_count,
                         urls: manifest_urls,
                         output_file: output_file_string,
+                        latency_ms,
+                        bytes,
                         ok: false,
                         error: Some(err.to_string()),
                     },
@@ -387,6 +407,8 @@ async fn fetch_source_chunk(
                     url_count,
                     urls: manifest_urls,
                     output_file: output_file_string,
+                    latency_ms,
+                    bytes,
                     ok: false,
                     error: Some(format!("HTTP {}: {}", status, text)),
                 }
@@ -399,6 +421,8 @@ async fn fetch_source_chunk(
             url_count,
             urls: manifest_urls,
             output_file: output_file_string,
+            latency_ms: elapsed_ms(start),
+            bytes: 0,
             ok: false,
             error: Some(err.to_string()),
         },
@@ -447,6 +471,8 @@ async fn fetch_x_sources(
                     url_count: 0,
                     urls: Vec::new(),
                     output_file: String::new(),
+                    latency_ms: 0,
+                    bytes: 0,
                     ok: false,
                     error: Some(err.to_string()),
                 },
@@ -465,6 +491,7 @@ async fn fetch_x_source(
     url: String,
     timeout_seconds: u64,
 ) -> FetchSourcesChunk {
+    let start = Instant::now();
     let output_file_string = output_file.display().to_string();
     let mut command = Command::new(&bird_command);
     command
@@ -490,29 +517,37 @@ async fn fetch_x_source(
         Err(err) => Err(anyhow::Error::from(err)),
     };
 
+    let latency_ms = elapsed_ms(start);
     match output {
-        Ok(output) if output.status.success() => match fs::write(&output_file, output.stdout) {
-            Ok(()) => FetchSourcesChunk {
-                index,
-                provider: "bird".to_string(),
-                source_type: "x".to_string(),
-                url_count: 1,
-                urls: vec![url],
-                output_file: output_file_string,
-                ok: true,
-                error: None,
-            },
-            Err(err) => FetchSourcesChunk {
-                index,
-                provider: "bird".to_string(),
-                source_type: "x".to_string(),
-                url_count: 1,
-                urls: vec![url],
-                output_file: output_file_string,
-                ok: false,
-                error: Some(err.to_string()),
-            },
-        },
+        Ok(output) if output.status.success() => {
+            let bytes = output.stdout.len();
+            match fs::write(&output_file, &output.stdout) {
+                Ok(()) => FetchSourcesChunk {
+                    index,
+                    provider: "bird".to_string(),
+                    source_type: "x".to_string(),
+                    url_count: 1,
+                    urls: vec![url],
+                    output_file: output_file_string,
+                    latency_ms,
+                    bytes,
+                    ok: true,
+                    error: None,
+                },
+                Err(err) => FetchSourcesChunk {
+                    index,
+                    provider: "bird".to_string(),
+                    source_type: "x".to_string(),
+                    url_count: 1,
+                    urls: vec![url],
+                    output_file: output_file_string,
+                    latency_ms,
+                    bytes,
+                    ok: false,
+                    error: Some(err.to_string()),
+                },
+            }
+        }
         Ok(output) => FetchSourcesChunk {
             index,
             provider: "bird".to_string(),
@@ -520,6 +555,8 @@ async fn fetch_x_source(
             url_count: 1,
             urls: vec![url],
             output_file: output_file_string,
+            latency_ms,
+            bytes: output.stdout.len(),
             ok: false,
             error: Some(format!(
                 "bird exited with {}: {}",
@@ -534,6 +571,8 @@ async fn fetch_x_source(
             url_count: 1,
             urls: vec![url],
             output_file: output_file_string,
+            latency_ms,
+            bytes: 0,
             ok: false,
             error: Some(err.to_string()),
         },
@@ -550,6 +589,10 @@ fn x_output_filename(index: usize, source: &Source) -> String {
 
 fn is_x_url(url: &str) -> bool {
     url.contains("://x.com/") || url.contains("://twitter.com/")
+}
+
+fn elapsed_ms(start: Instant) -> u64 {
+    start.elapsed().as_millis().try_into().unwrap_or(u64::MAX)
 }
 
 pub async fn map(config: &Config, args: &MapArgs) -> Result<Value> {
