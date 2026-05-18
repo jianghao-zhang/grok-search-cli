@@ -42,3 +42,4 @@
 | 1 | strip release symbols and abort panics | 222.037 | ✓ |
 | 2 | size-oriented release profile with thin LTO | 173.206 | ✓ |
 | 3 | dedupe X internal status URLs by post id | 173.928 | ✓ |
+| 4 | doctor command with optional live X Search smoke | 174.965 | ✓ |

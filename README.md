@@ -61,6 +61,13 @@ Check the masked live config:
 grok-search-cli config show
 ```
 
+Diagnose the local setup without exposing keys:
+
+```bash
+grok-search-cli doctor
+grok-search-cli doctor --live-x
+```
+
 ## Realtime Search
 
 Basic Grok search writes a session artifact:
@@ -130,6 +137,8 @@ The old MCP server exposed search, source retrieval, fetch, map, config diagnost
 | `get_config_info` | `grok-search-cli config show` and `grok-search-cli models` |
 | `switch_model` | `grok-search-cli config set-model <model>` |
 | `plan_*` tools | `grok-search-cli plan "<query>"` |
+
+`grok-search-cli doctor --live-x` is new: it verifies that the current endpoint can actually trigger X Search and returns tool-call/source counts without printing secrets.
 
 `toggle_builtin_tools` is intentionally not migrated. It mutated Claude Code settings and was not a search capability.
 

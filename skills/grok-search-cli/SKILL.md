@@ -18,6 +18,8 @@ Use `grok-search-cli fetch <url>` for full-page extraction and `grok-search-cli 
 
 Use `grok-search-cli plan "<query>"` only for complex searches where a visible command plan helps; do not require planning before simple searches.
 
+Use `grok-search-cli doctor` for local setup diagnostics. Use `grok-search-cli doctor --live-x` when the important question is whether this machine's current Grok endpoint can actually trigger X Search.
+
 ## Common Commands
 
 ```bash
@@ -28,6 +30,7 @@ grok-search-cli fetch "https://example.com/page"
 grok-search-cli map "https://docs.example.com" --instructions "only API reference pages"
 grok-search-cli models
 grok-search-cli config show
+grok-search-cli doctor --live-x
 ```
 
 ## Output Contract

@@ -23,6 +23,8 @@ pub enum Commands {
     Map(MapArgs),
     /// List models exposed by the configured Grok-compatible endpoint.
     Models(ModelsArgs),
+    /// Diagnose config, model availability, and optionally live X Search support.
+    Doctor(DoctorArgs),
     /// Show or update local configuration.
     Config {
         #[command(subcommand)]
@@ -195,6 +197,21 @@ pub struct ModelsArgs {
 
     /// Output format.
     #[arg(long, default_value = "text")]
+    pub format: OutputFormat,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct DoctorArgs {
+    /// Request timeout in seconds.
+    #[arg(long, default_value_t = 20)]
+    pub timeout_seconds: u64,
+
+    /// Run a real x_search smoke test against @xai.
+    #[arg(long)]
+    pub live_x: bool,
+
+    /// Output format.
+    #[arg(long, default_value = "json")]
     pub format: OutputFormat,
 }
 

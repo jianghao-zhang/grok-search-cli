@@ -1,6 +1,7 @@
 mod artifact;
 mod cli;
 mod config;
+mod doctor;
 mod grok;
 mod output;
 mod plan;
@@ -37,6 +38,10 @@ async fn main() -> Result<()> {
         Commands::Models(args) => {
             let models = grok::models(&config, args.timeout_seconds).await?;
             output::print_models(&models, args.format)?;
+        }
+        Commands::Doctor(args) => {
+            let report = doctor::run(&config, &args).await?;
+            output::print_json_or_text(&report, args.format)?;
         }
         Commands::Config { command } => match command {
             ConfigCommand::Show(args) => output::print_config(&config, args.format)?,
