@@ -73,8 +73,12 @@ The auditable record of all source URLs and inline citations returned by Grok to
 _Avoid_: answer-only citations, lost tool provenance
 
 **Source Fetch Command**:
-A CLI read-layer command that takes a Session Artifact and fetches non-X web sources through Tavily in parallel.
+A CLI read-layer command that takes a Session Artifact and fetches web sources through Tavily plus X sources through local bird-cli in parallel.
 _Avoid_: Grok calling Tavily, hidden provider routing
+
+**Source Index**:
+A file-backed Markdown or URL-list view of a Session Artifact that lets agents choose which source to read next by index or URL.
+_Avoid_: dumping many source bodies to terminal
 
 ## Relationships
 
@@ -95,3 +99,4 @@ _Avoid_: Grok calling Tavily, hidden provider routing
 - **X Community Reconnaissance** uses **X Search Controls** to preserve recall, speed, and auditability without fixed profiles.
 - A **Citation Ledger** feeds the **Evidence Contract** and **Session Artifact** so later agents can verify or fetch original X and web sources.
 - **Source Fetch Command** is allowed because it starts from an existing **Session Artifact** and belongs to the read/verification step, not Grok search execution.
+- **Source Index** is the default read handoff before **Source Fetch Command**; agents should inspect links and fetch selected sources before resorting to full-batch fetching.

@@ -19,6 +19,8 @@ pub enum Commands {
     Sources(SourcesArgs),
     /// Fetch artifact web sources through Tavily Extract in parallel.
     FetchSources(FetchSourcesArgs),
+    /// Fetch one artifact source by index or URL through its source-native reader.
+    FetchSource(FetchSourceArgs),
     /// Fetch full page content through Tavily Extract.
     Fetch(FetchArgs),
     /// Map a site through Tavily Map.
@@ -142,21 +144,49 @@ pub struct SourcesArgs {
     #[arg(long)]
     pub artifact_dir: Option<PathBuf>,
 
-    /// Include X/Twitter URLs in URL or Tavily command output.
+    /// Include X/Twitter URLs in URL output.
     #[arg(long)]
     pub include_x: bool,
+
+    /// Skip ordinary web sources in generated fetch command.
+    #[arg(long)]
+    pub no_web: bool,
+
+    /// Skip X/Twitter sources in generated fetch command.
+    #[arg(long)]
+    pub no_x: bool,
 
     /// Maximum URLs per Tavily Extract request chunk.
     #[arg(long, default_value_t = 10)]
     pub chunk_size: usize,
 
-    /// Maximum parallel Tavily Extract requests in generated shell command.
+    /// Maximum parallel source fetch requests in generated shell command.
     #[arg(long, default_value_t = 8)]
     pub parallel: usize,
 
-    /// Output directory used by generated Tavily command.
+    /// Maximum parallel bird read requests in generated shell command.
+    #[arg(long, default_value_t = 4)]
+    pub x_parallel: usize,
+
+    /// bird command timeout in seconds in generated shell command.
+    #[arg(long, default_value_t = 20)]
+    pub x_timeout_seconds: u64,
+
+    /// bird executable path or command name in generated shell command.
+    #[arg(long, default_value = "bird")]
+    pub bird_command: String,
+
+    /// Output directory used by generated fetch command.
     #[arg(long)]
     pub output_dir: Option<PathBuf>,
+
+    /// Write source output to a default file under sources-<session_id>/.
+    #[arg(long)]
+    pub write: bool,
+
+    /// Write source output to a specific file.
+    #[arg(long)]
+    pub output_file: Option<PathBuf>,
 
     /// Output format.
     #[arg(long, default_value = "json")]
@@ -172,9 +202,13 @@ pub struct FetchSourcesArgs {
     #[arg(long)]
     pub artifact_dir: Option<PathBuf>,
 
-    /// Include X/Twitter URLs. Default skips them because X should be read through X-native tools.
+    /// Skip ordinary web sources.
     #[arg(long)]
-    pub include_x: bool,
+    pub no_web: bool,
+
+    /// Skip X/Twitter sources.
+    #[arg(long)]
+    pub no_x: bool,
 
     /// Maximum URLs per Tavily Extract request chunk.
     #[arg(long, default_value_t = 10)]
@@ -184,15 +218,69 @@ pub struct FetchSourcesArgs {
     #[arg(long, default_value_t = 8)]
     pub parallel: usize,
 
+    /// Maximum parallel bird read requests for X/Twitter sources.
+    #[arg(long, default_value_t = 4)]
+    pub x_parallel: usize,
+
     /// Output directory for chunk JSON files and manifest.
     #[arg(long)]
     pub output_dir: Option<PathBuf>,
 
-    /// Request timeout in seconds per chunk.
+    /// Tavily request timeout in seconds per chunk.
     #[arg(long, default_value_t = 90)]
     pub timeout_seconds: u64,
 
+    /// bird command timeout in seconds per X/Twitter source.
+    #[arg(long, default_value_t = 20)]
+    pub x_timeout_seconds: u64,
+
+    /// bird executable path or command name.
+    #[arg(long, default_value = "bird")]
+    pub bird_command: String,
+
     /// Output format.
+    #[arg(long, default_value = "json")]
+    pub format: OutputFormat,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct FetchSourceArgs {
+    /// Artifact session id or path to artifact JSON.
+    pub session: String,
+
+    /// Override artifact directory when session is an id.
+    #[arg(long)]
+    pub artifact_dir: Option<PathBuf>,
+
+    /// One-based source index from `grok-search-cli sources <session> --format markdown`.
+    #[arg(long, conflicts_with = "url")]
+    pub index: Option<usize>,
+
+    /// Fetch an explicit URL instead of an indexed artifact source.
+    #[arg(long, conflicts_with = "index")]
+    pub url: Option<String>,
+
+    /// Output directory for fetched source content.
+    #[arg(long)]
+    pub output_dir: Option<PathBuf>,
+
+    /// Write fetched content to this exact file.
+    #[arg(long)]
+    pub output_file: Option<PathBuf>,
+
+    /// Tavily request timeout in seconds for web sources.
+    #[arg(long, default_value_t = 90)]
+    pub timeout_seconds: u64,
+
+    /// bird command timeout in seconds for X/Twitter sources.
+    #[arg(long, default_value_t = 20)]
+    pub x_timeout_seconds: u64,
+
+    /// bird executable path or command name.
+    #[arg(long, default_value = "bird")]
+    pub bird_command: String,
+
+    /// Output format for the fetch summary.
     #[arg(long, default_value = "json")]
     pub format: OutputFormat,
 }
@@ -323,7 +411,9 @@ pub enum SourcesFormat {
     Text,
     #[default]
     Json,
+    Markdown,
     Urls,
+    FetchCommand,
     TavilyCommand,
 }
 

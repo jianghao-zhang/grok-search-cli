@@ -32,6 +32,11 @@ async fn main() -> Result<()> {
             let result = web_tools::fetch_sources(&config, &artifact, &args).await?;
             output::print_fetch_sources(&result, args.format)?;
         }
+        Commands::FetchSource(args) => {
+            let artifact = artifact::load(&args.session, args.artifact_dir.as_deref())?;
+            let result = web_tools::fetch_source(&config, &artifact, &args).await?;
+            output::print_fetched_source(&result, args.format)?;
+        }
         Commands::Fetch(args) => {
             let fetched = web_tools::fetch(&config, &args).await?;
             output::print_fetch(&fetched, args.format)?;

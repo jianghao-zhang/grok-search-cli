@@ -48,7 +48,7 @@ Environment variables take priority:
 | `GROK_API_URL` | OpenAI/Responses-compatible Grok endpoint |
 | `GROK_API_KEY` | Grok endpoint key |
 | `GROK_MODEL` | Default model |
-| `TAVILY_API_KEY` | Enables `fetch`, `fetch-sources`, `map`, and explicit `--extra-sources` |
+| `TAVILY_API_KEY` | Enables web extraction in `fetch`, `fetch-sources`, `map`, and explicit `--extra-sources` |
 | `TAVILY_API_URL` | Tavily endpoint |
 
 Check the masked live config:
@@ -119,21 +119,40 @@ Inspect the durable Source Pack:
 ```bash
 grok-search-cli sources <session_id> --format text
 grok-search-cli sources <session_id> --format json
+grok-search-cli sources <session_id> --format markdown --write
+grok-search-cli sources <session_id> --format urls --include-x --write
 ```
 
-Fetch all non-X source pages through Tavily in parallel:
+The Markdown source index is the default agentic workflow artifact: it writes `sources-<session_id>/source-index.md` with numbered sources and ready-to-run `fetch-source --index N` commands. The URL list writes `sources-<session_id>/links.txt` for lightweight routing or external tooling.
+
+Fetch one selected source after inspecting the index:
+
+```bash
+grok-search-cli fetch-source <session_id> --index 3
+grok-search-cli fetch-source <session_id> --url "https://x.com/xai/status/..."
+```
+
+`fetch-source` writes content under `sources-<session_id>/`: web sources become Markdown from Tavily, X sources become JSON from local authenticated `bird read --json`.
+
+Fetch all artifact sources in parallel only when the agent truly needs a full batch:
 
 ```bash
 grok-search-cli fetch-sources <session_id> --parallel 8 --chunk-size 10
 ```
 
-Or ask the CLI to print the one-line command first:
+Web sources go through Tavily Extract. X sources go through local authenticated `bird read --json`, with separate X concurrency. If the artifact is X-only, `fetch-sources` does not require a Tavily key; if it contains web sources, configure `TAVILY_API_KEY` or use `--no-web`.
 
 ```bash
-grok-search-cli sources <session_id> --format tavily-command --parallel 8 --chunk-size 10
+grok-search-cli fetch-sources <session_id> --parallel 8 --chunk-size 10 --x-parallel 4
 ```
 
-`fetch-sources` writes `chunk-000.json`, `chunk-001.json`, and `manifest.json` under `tavily-<session_id>/`. X URLs are skipped by default; use `--include-x` only when you explicitly want Tavily to try them.
+Or ask the CLI to print the one-line batch command first:
+
+```bash
+grok-search-cli sources <session_id> --format fetch-command --parallel 8 --chunk-size 10
+```
+
+`fetch-sources` writes `web-000.json`, `x-000-<post_id>.json`, and `manifest.json` under `sources-<session_id>/`. Use `--no-web` or `--no-x` only when you intentionally want one side skipped. `--format tavily-command` remains accepted as a legacy alias for command generation, but the command now fetches both web and X sources through their proper read paths.
 
 ## Feature Parity With Old Grok Search MCP
 
