@@ -492,6 +492,14 @@ pub struct DoctorArgs {
 pub enum ConfigCommand {
     /// Show masked configuration.
     Show(ConfigShowArgs),
+    /// Configure the official xAI API endpoint.
+    UseOfficial(UseOfficialArgs),
+    /// Configure a local Grok2API/OpenAI-compatible proxy endpoint.
+    UseProxy(UseProxyArgs),
+    /// Persist the Grok-compatible API base URL.
+    SetApiUrl(SetApiUrlArgs),
+    /// Persist the Grok-compatible API key.
+    SetApiKey(SetApiKeyArgs),
     /// Persist the default Grok model in ~/.config/grok-search/config.json.
     SetModel(SetModelArgs),
     /// Persist a Tavily API key in ~/.config/grok-search/config.json.
@@ -503,6 +511,50 @@ pub struct ConfigShowArgs {
     /// Output format.
     #[arg(long, default_value = "json")]
     pub format: OutputFormat,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct UseOfficialArgs {
+    /// Optional API key to persist. Prefer XAI_API_KEY for shared machines.
+    #[arg(long)]
+    pub api_key: Option<String>,
+
+    /// Official xAI endpoint cluster.
+    #[arg(long, default_value = "global")]
+    pub endpoint: OfficialEndpoint,
+
+    /// Override the official xAI base URL.
+    #[arg(long)]
+    pub api_url: Option<String>,
+
+    /// Default official xAI model.
+    #[arg(long, default_value = "grok-4.3")]
+    pub model: String,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct UseProxyArgs {
+    /// Optional proxy API key to persist.
+    #[arg(long)]
+    pub api_key: Option<String>,
+
+    /// Local or remote Grok2API/OpenAI-compatible base URL.
+    #[arg(long, default_value = "http://127.0.0.1:8000/v1")]
+    pub api_url: String,
+
+    /// Default proxy model.
+    #[arg(long, default_value = "grok-4.20-multi-agent-console")]
+    pub model: String,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct SetApiUrlArgs {
+    pub api_url: String,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct SetApiKeyArgs {
+    pub key: String,
 }
 
 #[derive(Args, Debug, Clone)]
@@ -555,6 +607,15 @@ pub enum ConflictPolicy {
     PreferNewer,
     PreferAuthority,
     ShowAll,
+}
+
+#[derive(ValueEnum, Debug, Clone, Copy)]
+pub enum OfficialEndpoint {
+    /// Default official xAI endpoint.
+    Global,
+    /// Official xAI EU endpoint.
+    #[value(name = "eu-west-1", alias = "eu-west1")]
+    EuWest1,
 }
 
 impl std::fmt::Display for ConflictPolicy {

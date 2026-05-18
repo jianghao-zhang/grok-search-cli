@@ -30,9 +30,15 @@ Use `grok-search-cli plan "<query>"` only for complex searches where a visible c
 
 Use `grok-search-cli doctor` for local setup diagnostics, including Tavily and bird availability. Use `grok-search-cli doctor --live-x` when the important question is whether this machine's current Grok endpoint can actually trigger X Search.
 
+Use `grok-search-cli config use-official` for the official xAI API. It targets `https://api.x.ai/v1` and defaults to `grok-4.3`; users can supply credentials through `XAI_API_KEY`.
+
+Use `grok-search-cli config use-proxy` for Grok2API or another OpenAI-compatible proxy. It defaults to `http://127.0.0.1:8000/v1` and the local proxy model.
+
 ## Common Commands
 
 ```bash
+grok-search-cli config use-official
+grok-search-cli config use-proxy --api-url "http://127.0.0.1:8000/v1"
 grok-search-cli search --x-search --recency-days 14 --prefer-recent "latest Grok model discussion on X"
 grok-search-cli search --x-search --allowed-x-handle xai --from-date 2026-05-01 "Grok announcements"
 grok-search-cli source index <session_id>

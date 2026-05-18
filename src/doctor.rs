@@ -124,7 +124,12 @@ async fn check_models(config: &Config, timeout_seconds: u64) -> Value {
             "current_model": config.grok_model,
             "current_model_available": ids.iter().any(|id| id == &config.grok_model),
             "interesting_models": ids.into_iter().filter(|id| {
-                id == "grok-4.20-multi-agent-console" || id == "grok-4.3" || id == "grok-4.20"
+                id == "grok-4.20-multi-agent-console"
+                    || id == "grok-4.3"
+                    || id == "grok-4.20"
+                    || id == "grok-4.20-reasoning"
+                    || id == "grok-4-1-fast-reasoning"
+                    || id == "grok-4-fast-reasoning"
             }).collect::<Vec<_>>()
         }),
         Err(err) => json!({

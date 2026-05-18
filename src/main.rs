@@ -10,8 +10,8 @@ mod web_tools;
 
 use anyhow::Result;
 use clap::Parser;
-use cli::{Cli, Commands, ConfigCommand, SourceCommand, WebCommand};
-use config::Config;
+use cli::{Cli, Commands, ConfigCommand, OfficialEndpoint, SourceCommand, WebCommand};
+use config::{Config, OFFICIAL_XAI_API_URL, OFFICIAL_XAI_EU_API_URL};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -87,6 +87,28 @@ async fn main() -> Result<()> {
         }
         Commands::Config { command } => match command {
             ConfigCommand::Show(args) => output::print_config(&config, args.format)?,
+            ConfigCommand::UseOfficial(args) => {
+                let api_url = args.api_url.unwrap_or_else(|| match args.endpoint {
+                    OfficialEndpoint::Global => OFFICIAL_XAI_API_URL.to_string(),
+                    OfficialEndpoint::EuWest1 => OFFICIAL_XAI_EU_API_URL.to_string(),
+                });
+                config::use_official(args.api_key.as_deref(), &api_url, &args.model)?;
+                println!("official xAI API configured: {api_url}");
+                println!("model set to {}", args.model);
+            }
+            ConfigCommand::UseProxy(args) => {
+                config::use_proxy(args.api_key.as_deref(), &args.api_url, &args.model)?;
+                println!("Grok2API proxy configured: {}", args.api_url);
+                println!("model set to {}", args.model);
+            }
+            ConfigCommand::SetApiUrl(args) => {
+                config::set_api_url(&args.api_url)?;
+                println!("api url set to {}", args.api_url);
+            }
+            ConfigCommand::SetApiKey(args) => {
+                config::set_api_key(&args.key)?;
+                println!("api key set");
+            }
             ConfigCommand::SetModel(args) => {
                 config::set_model(&args.model)?;
                 println!("model set to {}", args.model);

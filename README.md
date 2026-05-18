@@ -46,10 +46,47 @@ If Tavily is missing, keep using `search`, `source index`, and `source links`; s
 
 ## Configuration
 
-The CLI reads a local config file at `~/.config/grok-search/config.json`:
+The CLI speaks the xAI/OpenAI-compatible Responses API. Use either the official xAI API or a Grok2API/OpenAI-compatible proxy.
+
+Official references: [xAI Responses API](https://docs.x.ai/docs/guides/chat), [X Search](https://docs.x.ai/developers/tools/x-search), and [model aliases](https://docs.x.ai/developers/models).
+
+Official xAI API:
+
+```bash
+export XAI_API_KEY="xai-..."
+grok-search-cli config use-official
+grok-search-cli doctor
+```
+
+This writes:
 
 ```json
 {
+  "provider": "xai-official",
+  "model": "grok-4.3",
+  "api_url": "https://api.x.ai/v1"
+}
+```
+
+For the EU endpoint:
+
+```bash
+grok-search-cli config use-official --endpoint eu-west-1
+```
+
+Grok2API or another OpenAI-compatible proxy:
+
+```bash
+grok-search-cli config use-proxy \
+  --api-url "http://127.0.0.1:8000/v1" \
+  --model "grok-4.20-multi-agent-console"
+```
+
+The local config file lives at `~/.config/grok-search/config.json`:
+
+```json
+{
+  "provider": "grok2api-proxy",
   "model": "grok-4.20-multi-agent-console",
   "api_url": "http://127.0.0.1:8000/v1",
   "api_key": "..."
@@ -61,8 +98,11 @@ Environment variables take priority:
 | Variable | Purpose |
 | --- | --- |
 | `GROK_API_URL` | OpenAI/Responses-compatible Grok endpoint |
-| `GROK_API_KEY` | Grok endpoint key |
-| `GROK_MODEL` | Default model |
+| `GROK_API_KEY` | Grok endpoint key for proxy or custom endpoints |
+| `GROK_MODEL` | Default model for proxy or custom endpoints |
+| `XAI_API_KEY` | Official xAI API key; when no URL is configured, this defaults the endpoint to `https://api.x.ai/v1` |
+| `XAI_API_URL` / `XAI_BASE_URL` | Official xAI-compatible base URL override |
+| `XAI_MODEL` | Default official xAI model |
 | `TAVILY_API_KEY` | Enables web extraction in `web fetch`, `web map`, web `source fetch`, web `source fetch-all`, and explicit `--extra-sources` |
 | `TAVILY_API_URL` | Tavily endpoint |
 
@@ -70,6 +110,9 @@ Check the masked live config:
 
 ```bash
 grok-search-cli config show
+grok-search-cli config set-api-url "https://api.x.ai/v1"
+grok-search-cli config set-api-key "xai-..."
+grok-search-cli config set-model "grok-4.3"
 grok-search-cli config set-tavily-key tvly-...
 ```
 
