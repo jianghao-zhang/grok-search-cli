@@ -19,6 +19,8 @@ Use `--x-search` when the question depends on X posts, X community reaction, pub
 
 The `search` command defaults to a 300 second timeout. Broad realtime/X/community queries can run for several minutes with no terminal output, especially through proxy endpoints. Do not treat 30-90 seconds of silence as failure; wait for completion unless the user interrupts or a shorter bound is explicitly needed. Add `--timeout-seconds <n>` only when the task needs a shorter or longer bound.
 
+Use `grok-search-cli search --background ...` when the query may run for minutes or when Codex should continue other work while Grok runs. The command returns a `job_id`; poll with `grok-search-cli job status <job_id>`, read the completed artifact with `grok-search-cli job result <job_id>`, or run `grok-search-cli job wait <job_id>` in a separate long-running terminal session to print the final artifact as soon as it finishes. Use `grok-search-cli job list` to find recent jobs and `grok-search-cli job cancel <job_id>` when a queued/running job should stop.
+
 Use `--from-date`, `--to-date`, or `--recency-days` for fast-changing domains. Prefer recent evidence when sources conflict, but keep the conflict visible.
 
 Use `grok-search-cli source index <session_id>` after a search when the answer is interesting, suspicious, or needs original-source verification.
@@ -49,6 +51,10 @@ Use `grok-search-cli config use-proxy` for Grok2API or another OpenAI-compatible
 grok-search-cli config use-official
 grok-search-cli config use-proxy --api-url "http://127.0.0.1:8000/v1"
 grok-search-cli search --x-search --recency-days 14 --prefer-recent "latest Grok model discussion on X"
+grok-search-cli search --background --x-search --timeout-seconds 600 "next week US stock market SPX trend and key levels"
+grok-search-cli job status <job_id>
+grok-search-cli job wait <job_id>
+grok-search-cli job result <job_id>
 grok-search-cli search --x-search --allowed-x-handle xai --from-date 2026-05-01 "Grok announcements"
 grok-search-cli source index <session_id>
 grok-search-cli source links <session_id>

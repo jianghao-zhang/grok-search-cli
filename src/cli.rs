@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
+use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Debug)]
 #[command(name = "grok-search-cli")]
@@ -15,6 +16,11 @@ pub struct Cli {
 pub enum Commands {
     /// Run a Grok realtime source reconnaissance search and persist a session artifact.
     Search(SearchArgs),
+    /// Manage background search jobs.
+    Job {
+        #[command(subcommand)]
+        command: JobCommand,
+    },
     /// Work with sources from a persisted search artifact.
     Source {
         #[command(subcommand)]
@@ -73,7 +79,89 @@ pub enum WebCommand {
     Map(MapArgs),
 }
 
+#[derive(Subcommand, Debug)]
+pub enum JobCommand {
+    /// Show one background job's current state.
+    Status(JobStatusArgs),
+    /// Print the completed search artifact for a background job.
+    Result(JobResultArgs),
+    /// Wait for a background job and print its completed search artifact.
+    Wait(JobWaitArgs),
+    /// List recent background jobs.
+    List(JobListArgs),
+    /// Cancel a queued or running background job.
+    Cancel(JobCancelArgs),
+    /// Internal worker entrypoint.
+    #[command(hide = true)]
+    Run(JobRunArgs),
+}
+
 #[derive(Args, Debug, Clone)]
+pub struct JobStatusArgs {
+    /// Background job id.
+    pub job_id: String,
+
+    /// Output format.
+    #[arg(long, default_value = "text")]
+    pub format: OutputFormat,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct JobResultArgs {
+    /// Background job id.
+    pub job_id: String,
+
+    /// Output format.
+    #[arg(long, default_value = "text")]
+    pub format: OutputFormat,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct JobWaitArgs {
+    /// Background job id.
+    pub job_id: String,
+
+    /// Poll interval while the job is still queued or running.
+    #[arg(long, default_value_t = 5)]
+    pub poll_seconds: u64,
+
+    /// Maximum wait time in seconds. Zero waits until the job reaches a terminal state.
+    #[arg(long, default_value_t = 0)]
+    pub timeout_seconds: u64,
+
+    /// Output format for the completed search artifact.
+    #[arg(long, default_value = "text")]
+    pub format: OutputFormat,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct JobListArgs {
+    /// Maximum jobs to show.
+    #[arg(long, default_value_t = 20)]
+    pub limit: usize,
+
+    /// Output format.
+    #[arg(long, default_value = "text")]
+    pub format: OutputFormat,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct JobCancelArgs {
+    /// Background job id.
+    pub job_id: String,
+
+    /// Output format.
+    #[arg(long, default_value = "text")]
+    pub format: OutputFormat,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct JobRunArgs {
+    /// Background job id.
+    pub job_id: String,
+}
+
+#[derive(Args, Debug, Clone, Serialize, Deserialize)]
 pub struct SearchArgs {
     /// Search query. Multiple words are joined with spaces.
     #[arg(required = true, num_args = 1..)]
@@ -150,6 +238,11 @@ pub struct SearchArgs {
     /// Request timeout in seconds.
     #[arg(long, default_value_t = 300)]
     pub timeout_seconds: u64,
+
+    /// Run the search as a detached background job and return a job id immediately.
+    #[arg(long)]
+    #[serde(default)]
+    pub background: bool,
 
     /// Include raw upstream JSON in the saved artifact.
     #[arg(long)]
@@ -584,7 +677,8 @@ impl PlanArgs {
     }
 }
 
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, ValueEnum)]
+#[derive(Copy, Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, ValueEnum)]
+#[serde(rename_all = "kebab-case")]
 pub enum OutputFormat {
     #[default]
     Text,
@@ -602,7 +696,8 @@ pub enum SourcesFormat {
     TavilyCommand,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, ValueEnum)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, ValueEnum)]
+#[serde(rename_all = "kebab-case")]
 pub enum ConflictPolicy {
     PreferNewer,
     PreferAuthority,

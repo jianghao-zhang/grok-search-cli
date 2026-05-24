@@ -3,6 +3,7 @@ mod cli;
 mod config;
 mod doctor;
 mod grok;
+mod jobs;
 mod output;
 mod plan;
 mod source;
@@ -10,7 +11,7 @@ mod web_tools;
 
 use anyhow::Result;
 use clap::Parser;
-use cli::{Cli, Commands, ConfigCommand, OfficialEndpoint, SourceCommand, WebCommand};
+use cli::{Cli, Commands, ConfigCommand, JobCommand, OfficialEndpoint, SourceCommand, WebCommand};
 use config::{Config, OFFICIAL_XAI_API_URL, OFFICIAL_XAI_EU_API_URL};
 
 #[tokio::main]
@@ -20,9 +21,51 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Commands::Search(args) => {
-            let artifact = grok::search(&config, args).await?;
-            output::print_search_artifact(&artifact, artifact.format)?;
+            if args.background {
+                let format = args.format;
+                let job = jobs::submit_search(args)?;
+                output::print_job_submitted(&job, format)?;
+            } else {
+                let artifact = grok::search(&config, args).await?;
+                output::print_search_artifact(&artifact, artifact.format)?;
+            }
         }
+        Commands::Job { command } => match command {
+            JobCommand::Status(args) => {
+                let job = jobs::status_job(&args.job_id)?;
+                output::print_job(&job, args.format)?;
+            }
+            JobCommand::Result(args) => {
+                let artifact = jobs::completed_artifact(&args.job_id)?;
+                output::print_search_artifact(&artifact, args.format)?;
+            }
+            JobCommand::Wait(args) => {
+                let job =
+                    jobs::wait_job(&args.job_id, args.poll_seconds, args.timeout_seconds).await?;
+                match job.status {
+                    jobs::JobStatus::Succeeded => {
+                        let artifact = jobs::completed_artifact(&args.job_id)?;
+                        output::print_search_artifact(&artifact, args.format)?;
+                    }
+                    jobs::JobStatus::Failed | jobs::JobStatus::Cancelled => {
+                        output::print_job(&job, args.format)?;
+                        anyhow::bail!("job {} {}", job.id, job.status.as_str());
+                    }
+                    jobs::JobStatus::Queued | jobs::JobStatus::Running => unreachable!(),
+                }
+            }
+            JobCommand::List(args) => {
+                let jobs = jobs::list_jobs(args.limit)?;
+                output::print_jobs(&jobs, args.format)?;
+            }
+            JobCommand::Cancel(args) => {
+                let job = jobs::cancel_job(&args.job_id)?;
+                output::print_job(&job, args.format)?;
+            }
+            JobCommand::Run(args) => {
+                jobs::run_search_job(&config, &args.job_id).await?;
+            }
+        },
         Commands::Source { command } => match command {
             SourceCommand::Index(args) => {
                 let args = args.into_sources_args();

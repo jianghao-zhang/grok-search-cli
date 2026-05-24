@@ -8,6 +8,7 @@ use crate::{
     artifact::SearchArtifact,
     cli::{OutputFormat, SourcesArgs, SourcesFormat},
     config::Config,
+    jobs::JobRecord,
     source::{Source, SourceType},
     web_tools::{FetchResult, FetchSourcesResult, FetchedSourceResult},
 };
@@ -129,6 +130,81 @@ pub fn print_models(models: &[String], format: OutputFormat) -> Result<()> {
     }
 }
 
+pub fn print_job_submitted(job: &JobRecord, format: OutputFormat) -> Result<()> {
+    match format {
+        OutputFormat::Json => print_json(job),
+        OutputFormat::Text => {
+            println!("job_id: {}", job.id);
+            println!("status: {}", job.status.as_str());
+            if let Some(pid) = job.pid {
+                println!("pid: {pid}");
+            }
+            println!("query: {}", job.query);
+            println!("created_at: {}", job.created_at);
+            println!("log_file: {}", job.log_file.display());
+            println!("status_command: grok-search-cli job status {}", job.id);
+            println!("result_command: grok-search-cli job result {}", job.id);
+            Ok(())
+        }
+    }
+}
+
+pub fn print_job(job: &JobRecord, format: OutputFormat) -> Result<()> {
+    match format {
+        OutputFormat::Json => print_json(job),
+        OutputFormat::Text => {
+            println!("job_id: {}", job.id);
+            println!("status: {}", job.status.as_str());
+            println!("query: {}", job.query);
+            if let Some(pid) = job.pid {
+                println!("pid: {pid}");
+            }
+            println!("created_at: {}", job.created_at);
+            if let Some(started_at) = job.started_at {
+                println!("started_at: {started_at}");
+            }
+            println!("updated_at: {}", job.updated_at);
+            if let Some(completed_at) = job.completed_at {
+                println!("completed_at: {completed_at}");
+            }
+            println!("elapsed_seconds: {}", job_elapsed_seconds(job));
+            if let Some(session_id) = &job.session_id {
+                println!("session_id: {session_id}");
+            }
+            if let Some(path) = &job.artifact_path {
+                println!("artifact: {}", path.display());
+            }
+            println!("log_file: {}", job.log_file.display());
+            if let Some(error) = &job.error {
+                println!("error: {error}");
+            }
+            Ok(())
+        }
+    }
+}
+
+pub fn print_jobs(jobs: &[JobRecord], format: OutputFormat) -> Result<()> {
+    match format {
+        OutputFormat::Json => print_json(jobs),
+        OutputFormat::Text => {
+            if jobs.is_empty() {
+                println!("no jobs");
+                return Ok(());
+            }
+            for job in jobs {
+                println!(
+                    "{}  {:<9}  {:>5}s  {}",
+                    job.id,
+                    job.status.as_str(),
+                    job_elapsed_seconds(job),
+                    truncate(&job.query, 96)
+                );
+            }
+            Ok(())
+        }
+    }
+}
+
 pub fn print_config(config: &Config, format: OutputFormat) -> Result<()> {
     match format {
         OutputFormat::Json => print_json(&config.masked()),
@@ -162,6 +238,22 @@ pub fn print_json_or_text(value: &Value, format: OutputFormat) -> Result<()> {
 fn print_json<T: Serialize + ?Sized>(value: &T) -> Result<()> {
     println!("{}", serde_json::to_string_pretty(value)?);
     Ok(())
+}
+
+fn job_elapsed_seconds(job: &JobRecord) -> i64 {
+    let start = job.started_at.unwrap_or(job.created_at);
+    let end = job.completed_at.unwrap_or_else(chrono::Utc::now);
+    end.signed_duration_since(start).num_seconds().max(0)
+}
+
+fn truncate(value: &str, max_chars: usize) -> String {
+    let mut chars = value.chars();
+    let truncated: String = chars.by_ref().take(max_chars).collect();
+    if chars.next().is_some() {
+        format!("{truncated}...")
+    } else {
+        truncated
+    }
 }
 
 fn render_sources(artifact: &SearchArtifact, args: &SourcesArgs) -> Result<String> {

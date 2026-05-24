@@ -135,6 +135,25 @@ grok-search-cli search "latest AI agent browser control research"
 
 `search` defaults to a 300 second timeout because Grok realtime and X Search requests can be slow through proxy chains. Use `--timeout-seconds <n>` for a specific run.
 
+For searches that may run for minutes, submit a background job instead of blocking the current terminal:
+
+```bash
+grok-search-cli search --background --x-search --timeout-seconds 600 \
+  "next week US stock market SPX trend and key levels"
+```
+
+The command returns immediately with a `job_id`, `log_file`, and ready-to-run status/result commands. Jobs are stored under `~/.config/grok-search/jobs/`; completed search artifacts still live under `~/.config/grok-search/sessions/`.
+
+```bash
+grok-search-cli job status <job_id>
+grok-search-cli job result <job_id>
+grok-search-cli job wait <job_id>
+grok-search-cli job list
+grok-search-cli job cancel <job_id>
+```
+
+Use `job wait` when an agent runner can keep a separate long-running terminal session open; it polls the job and prints the final search artifact as soon as the job succeeds.
+
 X Search is first-class:
 
 ```bash
