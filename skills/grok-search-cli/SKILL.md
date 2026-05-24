@@ -13,7 +13,9 @@ The tool is a CLI workflow. Call `grok-search-cli` directly and use its disk-bac
 
 ## Routing
 
-Use `grok-search-cli search` when the task needs realtime leads or Grok's X/community strength.
+Use `grok-search-cli search --background` by default when the task needs realtime leads or Grok's X/community strength. This is the normal agent mode: submit the job, keep the `job_id`, continue other work, then use `grok-search-cli job wait <job_id>` or `grok-search-cli job result <job_id>` to collect the artifact.
+
+Use synchronous `grok-search-cli search` only when the query is intentionally small, the user explicitly wants the command to block until completion, or a script needs immediate stdout rather than a job record.
 
 Use `--x-search` when the question depends on X posts, X community reaction, public handles, threads, launches, incidents, rumors, or fresh social evidence.
 
