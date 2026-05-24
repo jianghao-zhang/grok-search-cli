@@ -19,8 +19,6 @@ Use `--x-search` when the question depends on X posts, X community reaction, pub
 
 The `search` command defaults to a 300 second timeout. Broad realtime/X/community queries can run for several minutes with no terminal output, especially through proxy endpoints. Do not treat 30-90 seconds of silence as failure; wait for completion unless the user interrupts or a shorter bound is explicitly needed. Add `--timeout-seconds <n>` only when the task needs a shorter or longer bound.
 
-When the `grok-search` MCP server is available and the task may take minutes, prefer its background job tools over a blocking foreground call: submit with `submit_search_job`, poll with `get_search_job`, inspect recent jobs with `list_search_jobs`, and cancel with `cancel_search_job` when the user interrupts. Use this especially for `grok-4.20-multi-agent-xhigh`, market research, broad realtime synthesis, or any query where continuing other work while Grok runs is valuable.
-
 Use `--from-date`, `--to-date`, or `--recency-days` for fast-changing domains. Prefer recent evidence when sources conflict, but keep the conflict visible.
 
 Use `grok-search-cli source index <session_id>` after a search when the answer is interesting, suspicious, or needs original-source verification.
